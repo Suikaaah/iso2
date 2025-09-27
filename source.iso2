@@ -1,0 +1,10 @@
+type bool = True | False
+type bool_option = None | Some of bool
+type bool_option_list =
+  | Nil
+  | Cons of (bool_option * bool_option_list)
+
+(invert iso
+| Some x <-> x
+| None <-> ()
+end) ()
