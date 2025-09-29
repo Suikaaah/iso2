@@ -9,9 +9,10 @@ open Types
 %token BACKSLASH
 %token DOT
 %token COMMA
+%token COLON
+%token ARROW
 %token BIARROW
 %token EQUAL
-%token TIMES
 %token LET
 %token IN
 %token ISO
@@ -24,6 +25,7 @@ open Types
 
 %start <program> program
 %type <base_type> base_type
+%type <iso_type> iso_type
 %type <value> value
 %type <pat> pat
 %type <expr> expr
@@ -45,7 +47,7 @@ variant:
   | c = NAME; { Value c }
 
 base_type:
-  | LPAREN; ts = separated_list(TIMES, base_type); RPAREN;
+  | LPAREN; ts = separated_list(COMMA, base_type); RPAREN;
     {
       match ts with
       | [] -> Unit
@@ -53,6 +55,11 @@ base_type:
       | _ -> Product ts
     }
   | x = NAME; { Named x }
+
+iso_type:
+  | LPAREN; t = iso_type; RPAREN; { t }
+  | a = base_type; BIARROW; b = base_type; { BiArrow { a; b } }
+  | t_1 = iso_type; ARROW; t_2 = iso_type; { Arrow { t_1; t_2 } }
 
 value:
   | LPAREN; vs = separated_list(COMMA, value); RPAREN;
@@ -84,9 +91,9 @@ biarrowed:
 
 iso:
   | LPAREN; omega = iso; RPAREN; { omega }
-  | ISO; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); END; { Pairs pairs }
-  | FIX; phi = NAME; DOT; omega = iso; { Fix { phi; omega } }
-  | BACKSLASH; psi = NAME; DOT; omega = iso; { Lambda { psi; omega } }
+  | ISO; COLON; anot = iso_type; EQUAL; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); END; { Pairs { anot; pairs } }
+  | FIX; phi = NAME; COLON; anot = iso_type; DOT; omega = iso; { Fix { phi; anot; omega } }
+  | BACKSLASH; psi = NAME; COLON; anot = iso_type; DOT; omega = iso; { Lambda { psi; anot; omega } }
   | x = NAME; { Named x }
   | omega_1 = iso; omega_2 = iso; { App { omega_1; omega_2 } }
   | INVERT; omega = iso; { Invert omega }
@@ -99,7 +106,6 @@ term:
       | [t] -> t
       | _ -> Tuple ts
     }
-  | c = NAME; t = term; { Cted { c; t } }
   | x = NAME; { Named x }
   | omega = iso; t = term; { App { omega; t } }
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }

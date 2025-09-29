@@ -4,7 +4,7 @@ open Parser
 }
 
 let white = [' ' '\t' '\r' '\n']+
-let string = [^ '(' ')' '|' '\\' '.' ',' '-' '<' '>' '=' '*' ' ' '\t' '\r' '\n']+
+let string = [^ '(' ')' '|' '\\' '.' ',' ':' '-' '<' '>' '=' ' ' '\t' '\r' '\n']+
 
 rule token = parse
   | eof { EOF }
@@ -15,9 +15,10 @@ rule token = parse
   | "\\" { BACKSLASH }
   | "." { DOT }
   | "," { COMMA }
+  | ":" { COLON }
+  | "->" { ARROW }
   | "<->" { BIARROW }
   | "=" { EQUAL }
-  | "*" { TIMES }
   | "let" { LET }
   | "in" { IN }
   | "iso" { ISO }

@@ -25,9 +25,9 @@ type expr =
 [@@deriving show]
 
 and iso =
-  | Pairs of (value * expr) list
-  | Fix of { phi : string; omega : iso }
-  | Lambda of { psi : string; omega : iso }
+  | Pairs of { anot : iso_type; pairs : (value * expr) list }
+  | Fix of { phi : string; anot : iso_type; omega : iso }
+  | Lambda of { psi : string; anot : iso_type; omega : iso }
   | Named of string
   | App of { omega_1 : iso; omega_2 : iso }
   | Invert of iso
@@ -36,7 +36,6 @@ and iso =
 type term =
   | Unit
   | Named of string
-  | Cted of { c : string; t : term }
   | Tuple of term list
   | App of { omega : iso; t : term }
   | Let of { p : pat; t_1 : term; t_2 : term }
