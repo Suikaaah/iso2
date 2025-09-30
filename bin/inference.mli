@@ -6,7 +6,6 @@ type delta = base_type StrMap.t
 type context = { psi : psi; delta : delta }
 
 val invert_iso_type : iso_type -> iso_type
-val term_of_value : value -> term
 val unify_pat : pat -> base_type -> (string * base_type) list option
 
 val unify_value :

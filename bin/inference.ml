@@ -12,12 +12,6 @@ let rec invert_iso_type : iso_type -> iso_type = function
       let t_2 = invert_iso_type t_2 in
       Arrow { t_1; t_2 }
 
-let rec term_of_value : value -> term = function
-  | Unit -> Unit
-  | Named x -> Named x
-  | Cted { c; v } -> App { omega = Named c; t = term_of_value v }
-  | Tuple l -> Tuple (List.map term_of_value l)
-
 let rec unify_pat (p : pat) (a : base_type) : (string * base_type) list option =
   match (p, a) with
   | Named x, _ -> Some [ (x, a) ]

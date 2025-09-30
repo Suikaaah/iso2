@@ -1,16 +1,23 @@
 let read_program path =
   let file = open_in path in
-  Parser.program Lexer.token (Lexing.from_channel file)
+  let lexbuf = Lexing.from_channel file in
+  Parser.program Lexer.token lexbuf
 
 let () =
   let open Types in
   let open Inference in
+  let open Eval in
   let program = read_program "source.iso2" in
+  print_endline "AST:";
   show_program program |> print_endline;
+  print_endline "\nInfered:";
   let { t; ts } = program in
-  let content =
-    match infer_base (build_ctx ts) t with
-    | Some t -> show_base_type t
-    | None -> "unable to infer the type"
-  in
-  print_endline content
+  let ctx = build_ctx ts in
+  begin
+    match infer_base ctx t with
+    | Some a ->
+        show_base_type a |> print_endline;
+        print_endline "\nEvaluated:";
+        eval t |> p_term |> print_endline
+    | None -> "unable to infer type" |> print_endline
+  end

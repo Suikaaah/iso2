@@ -90,10 +90,9 @@ biarrowed:
   | v = value; BIARROW; e = expr; { (v, e) }
 
 iso:
-  | LPAREN; omega = iso; RPAREN; { omega }
-  | ISO; COLON; anot = iso_type; EQUAL; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); END; { Pairs { anot; pairs } }
-  | FIX; phi = NAME; COLON; anot = iso_type; DOT; omega = iso; { Fix { phi; anot; omega } }
-  | BACKSLASH; psi = NAME; COLON; anot = iso_type; DOT; omega = iso; { Lambda { psi; anot; omega } }
+  | ISO; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); END; { Pairs { anot; pairs } }
+  | FIX; phi = NAME; COLON; anot = iso_type; DOT; omega = iso; END; { Fix { phi; anot; omega } }
+  | BACKSLASH; psi = NAME; COLON; anot = iso_type; DOT; omega = iso; END; { Lambda { psi; anot; omega } }
   | x = NAME; { Named x }
   | omega_1 = iso; omega_2 = iso; { App { omega_1; omega_2 } }
   | INVERT; omega = iso; { Invert omega }

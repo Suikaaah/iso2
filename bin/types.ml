@@ -50,3 +50,32 @@ type typedef = { t : string; vs : variant list }
 
 type program = { ts : typedef list; t : term }
 [@@deriving show { with_path = false }]
+
+let rec term_of_value : value -> term = function
+  | Unit -> Unit
+  | Named x -> Named x
+  | Cted { c; v } -> App { omega = Named c; t = term_of_value v }
+  | Tuple l -> Tuple (List.map term_of_value l)
+
+let rec term_of_pat : pat -> term = function
+  | Named x -> Named x
+  | Tuple l -> Tuple (List.map term_of_pat l)
+
+let rec term_of_expr : expr -> term = function
+  | Value v -> term_of_value v
+  | Let { p_1; omega; p_2; e } ->
+      Let
+        {
+          p = p_1;
+          t_1 = App { omega; t = term_of_pat p_2 };
+          t_2 = term_of_expr e;
+        }
+
+let rec p_term : term -> string = function
+  | Unit -> "()"
+  | Named x -> x
+  | Tuple (hd :: tl) ->
+      let init = "(" ^ p_term hd in
+      List.fold_left (fun acc x -> acc ^ ", " ^ p_term x) init tl ^ ")"
+  | App { omega = Named omega; t } -> omega ^ " " ^ p_term t
+  | _ -> "<bruh>"

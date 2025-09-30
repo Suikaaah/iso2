@@ -46,3 +46,8 @@ type variant = Value of string | Iso of { c : string; a : base_type }
 
 type typedef = { t : string; vs : variant list } [@@deriving show]
 type program = { ts : typedef list; t : term } [@@deriving show]
+
+val term_of_value : value -> term
+val term_of_pat : pat -> term
+val term_of_expr : expr -> term
+val p_term : term -> string
