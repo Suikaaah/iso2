@@ -39,13 +39,16 @@ let rec subst ~(from : string) ~(into : term) ~(what : term) : term =
   | Named x when x = from -> into
   | Tuple l -> Tuple (List.map subst l)
   | App { omega; t } -> App { omega; t = subst t }
+  | Let { p; t_1; t_2 } when contains from p -> Let { p; t_1 = subst t_1; t_2 }
   | Let { p; t_1; t_2 } -> Let { p; t_1 = subst t_1; t_2 = subst t_2 }
+  | LetIso { phi; omega; t } when phi <> from ->
+      LetIso { phi; omega; t = subst t }
   | _ -> what
 
 let rec subst_iso ~(from : string) ~(into : iso) ~(what : iso) : iso =
   let subst_iso what = subst_iso ~from ~into ~what in
   match what with
-  | Pairs { anot; pairs } ->
+  | Pairs { anot; pairs } when not (contains_pairs from pairs) ->
       let pairs =
         List.map
           (fun (v, e) -> (v, subst_iso_in_expr ~from ~into ~what:e))
@@ -68,6 +71,18 @@ and subst_iso_in_expr ~(from : string) ~(into : iso) ~(what : expr) : expr =
       let e = subst_iso_in_expr ~from ~into ~what:e in
       Let { p_1; omega; p_2; e }
 
+let rec subst_iso_in_term ~(from : string) ~(into : iso) ~(what : term) : term =
+  let subst_iso_in_term what = subst_iso_in_term ~from ~into ~what in
+  let subst_iso what = subst_iso ~from ~into ~what in
+  match what with
+  | Tuple l -> Tuple (List.map subst_iso_in_term l)
+  | App { omega; t } -> App { omega = subst_iso omega; t = subst_iso_in_term t }
+  | Let { p; t_1; t_2 } ->
+      Let { p; t_1 = subst_iso_in_term t_1; t_2 = subst_iso_in_term t_2 }
+  | LetIso { phi; omega; t } when phi <> from ->
+      LetIso { phi; omega = subst_iso omega; t = subst_iso_in_term t }
+  | _ -> what
+
 let rec value_of_term : term -> value option = function
   | Unit -> Some Unit
   | Named x -> Some (Named x)
@@ -83,7 +98,7 @@ let rec value_of_term : term -> value option = function
 let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
   let rec vv : value * value -> bool = function
     | Unit, Unit -> true
-    | Named x, _ when String.starts_with ~prefix:"`" x -> true
+    | Named x, _ when is_variable x -> true
     | Named x, Named y -> x = y
     | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
         c_1 = c_2 && vv (v_1, v_2)
@@ -96,7 +111,7 @@ let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
 let rec unify_value (u : value) (v : value) : (string * value) list =
   match (u, v) with
   | Unit, _ -> []
-  | Named x, _ when String.starts_with ~prefix:"`" x -> [ (x, v) ]
+  | Named x, _ when is_variable x -> [ (x, v) ]
   | Cted { v = v_1; _ }, Cted { v = v_2; _ } -> unify_value v_1 v_2
   | Tuple l, Tuple r ->
       let opt =
@@ -136,6 +151,9 @@ let rec eval (t : term) : term =
           |> eval
       | None -> t
     end
+  | LetIso { phi; omega; t } ->
+      let omega = eval_iso omega in
+      subst_iso_in_term ~from:phi ~into:omega ~what:t |> eval
   | _ -> t
 
 and eval_iso (omega : iso) : iso =
@@ -148,5 +166,5 @@ and eval_iso (omega : iso) : iso =
           subst_iso ~from:psi ~into:omega_2 ~what:omega |> eval_iso
       | _ -> omega
     end
-  | Invert omega -> invert omega
+  | Invert omega -> invert omega |> eval_iso
   | _ -> omega

@@ -39,6 +39,7 @@ type term =
   | Tuple of term list
   | App of { omega : iso; t : term }
   | Let of { p : pat; t_1 : term; t_2 : term }
+  | LetIso of { phi : string; omega : iso; t : term }
 [@@deriving show]
 
 type variant = Value of string | Iso of { c : string; a : base_type }
@@ -51,3 +52,6 @@ val term_of_value : value -> term
 val term_of_pat : pat -> term
 val term_of_expr : expr -> term
 val p_term : term -> string
+val contains : string -> pat -> bool
+val contains_value : string -> value -> bool
+val contains_pairs : string -> (value * expr) list -> bool

@@ -108,3 +108,4 @@ term:
   | x = NAME; { Named x }
   | omega = iso; t = term; { App { omega; t } }
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
+  | LET; ISO; phi = NAME; EQUAL; omega = iso; IN; t = term { LetIso { phi; omega; t } }

@@ -1,10 +1,23 @@
-type bool = true | false
-type nat = 0 | 1+ of nat
-type blist = nil | cons of (bool, blist)
+type int = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 
-fix len : blist <-> (blist, nat).
-  iso : blist <-> (blist, nat).
-  | nil           <-> (nil, 0)
-  | cons (`h, `t) <-> let (t, n) = len `t in (cons (`h, t), 1+ n)
+let iso add1 =
+  iso : int <-> int.
+  | 0 <-> 1
+  | 1 <-> 2
+  | 2 <-> 3
+  | 3 <-> 4
+  | 4 <-> 5
+  | 5 <-> 6
+  | 6 <-> 7
+  | 7 <-> 0
   end
-end cons (false, cons (true, cons (true, nil)))
+in
+let iso add2 =
+  iso : int <-> int.
+  | n <-> let n = add1 n in
+          let n = add1 n in
+          n
+  end
+in
+let iso sub2 = invert add2 in
+sub2 6

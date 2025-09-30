@@ -6,3 +6,4 @@ val bind_all : 'a option list -> 'a list option
 val combine : 'a list -> 'b list -> ('a * 'b) list option
 val extend : 'a StrMap.t -> (string * 'a) list -> 'a StrMap.t
 val value_or : 'a -> 'a option -> 'a
+val is_variable : string -> bool

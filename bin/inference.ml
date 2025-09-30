@@ -65,6 +65,10 @@ and infer_base (ctx : context) (t : term) : base_type option =
       let* unified = unify_pat p a in
       let extended = extend ctx.delta unified in
       infer_base { psi = ctx.psi; delta = extended } t_2
+  | LetIso { phi; omega; t } ->
+      let* omega = infer_iso ctx omega in
+      let extended = StrMap.add phi omega ctx.psi in
+      infer_base { psi = extended; delta = ctx.delta } t
 
 and infer_iso (ctx : context) (omega : iso) : iso_type option =
   match omega with

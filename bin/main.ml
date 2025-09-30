@@ -18,6 +18,8 @@ let () =
     | Some a ->
         show_base_type a |> print_endline;
         print_endline "\nEvaluated:";
+        eval t |> show_term |> print_endline;
+        print_endline "\nEvaluated (readable):";
         eval t |> p_term |> print_endline
     | None -> "unable to infer type" |> print_endline
   end

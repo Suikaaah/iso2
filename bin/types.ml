@@ -40,6 +40,7 @@ type term =
   | Tuple of term list
   | App of { omega : iso; t : term }
   | Let of { p : pat; t_1 : term; t_2 : term }
+  | LetIso of { phi : string; omega : iso; t : term }
 [@@deriving show { with_path = false }]
 
 type variant = Value of string | Iso of { c : string; a : base_type }
@@ -79,3 +80,16 @@ let rec p_term : term -> string = function
       List.fold_left (fun acc x -> acc ^ ", " ^ p_term x) init tl ^ ")"
   | App { omega = Named omega; t } -> omega ^ " " ^ p_term t
   | _ -> "<bruh>"
+
+let rec contains (what : string) : pat -> bool = function
+  | Named x -> x = what
+  | Tuple l -> List.exists (contains what) l
+
+let rec contains_value (what : string) : value -> bool = function
+  | Unit -> false
+  | Named x -> x = what
+  | Cted { v; _ } -> contains_value what v
+  | Tuple l -> List.exists (contains_value what) l
+
+let contains_pairs (what : string) (pairs : (value * expr) list) : bool =
+  List.exists (fun (v, _) -> contains_value what v) pairs

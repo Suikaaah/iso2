@@ -25,3 +25,9 @@ let extend (what : 'a StrMap.t) (list : (string * 'a) list) : 'a StrMap.t =
 let value_or (value : 'a) : 'a option -> 'a = function
   | None -> value
   | Some value -> value
+
+let is_variable (value : string) : bool =
+  0 < String.length value
+  &&
+  let first = String.get value 0 |> Char.code in
+  Char.code 'a' <= first && first <= Char.code 'z'
