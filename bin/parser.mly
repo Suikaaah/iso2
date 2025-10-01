@@ -16,7 +16,6 @@ open Types
 %token LET
 %token IN
 %token ISO
-%token END
 %token FIX
 %token TYPE
 %token INVERT
@@ -36,6 +35,10 @@ open Types
 %type <value * expr> biarrowed
 %%
 
+wtf(separator, X):
+  | x = X; separator; y = X; { [x; y] }
+  | x = X; separator; xs = wtf(separator, X) { x :: xs }
+
 program:
   | ts = typedef*; t = term; EOF; { { ts; t } }
 
@@ -47,13 +50,8 @@ variant:
   | c = NAME; { Value c }
 
 base_type:
-  | LPAREN; ts = separated_list(COMMA, base_type); RPAREN;
-    {
-      match ts with
-      | [] -> Unit
-      | [a] -> a
-      | _ -> Product ts
-    }
+  | LPAREN; RPAREN; { Unit }
+  | LPAREN; ts = wtf(COMMA, base_type) RPAREN; { Product ts }
   | x = NAME; { Named x }
 
 iso_type:
@@ -62,25 +60,14 @@ iso_type:
   | t_1 = iso_type; ARROW; t_2 = iso_type; { Arrow { t_1; t_2 } }
 
 value:
-  | LPAREN; vs = separated_list(COMMA, value); RPAREN;
-    {
-      match vs with
-      | [] -> Unit
-      | [v] -> v
-      | _ -> Tuple vs
-    }
+  | LPAREN; RPAREN; { Unit }
+  | LPAREN; vs = wtf(COMMA, value); RPAREN; { Tuple vs }
   | c = NAME; v = value; { Cted { c; v } }
   | x = NAME; { Named x }
 
 pat:
   | x = NAME; { Named x }
-  | LPAREN; ps = separated_nonempty_list(COMMA, pat); RPAREN;
-    {
-      match ps with
-      | [] -> failwith "unreachable"
-      | [p] -> p
-      | _ -> Tuple ps
-    }
+  | LPAREN; ps = wtf(COMMA, pat); RPAREN; { Tuple ps }
 
 expr:
   | v = value; { Value v }
@@ -90,21 +77,17 @@ biarrowed:
   | v = value; BIARROW; e = expr; { (v, e) }
 
 iso:
-  | ISO; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); END; { Pairs { anot; pairs } }
-  | FIX; phi = NAME; COLON; anot = iso_type; DOT; omega = iso; END; { Fix { phi; anot; omega } }
-  | BACKSLASH; psi = NAME; COLON; anot = iso_type; DOT; omega = iso; END; { Lambda { psi; anot; omega } }
+  | LPAREN; omega = iso; RPAREN; { omega }
+  | ISO; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); { Pairs { anot; pairs } }
+  | FIX; phi = NAME; COLON; anot = iso_type; DOT; omega = iso; { Fix { phi; anot; omega } }
+  | BACKSLASH; psi = NAME; COLON; anot = iso_type; DOT; omega = iso; { Lambda { psi; anot; omega } }
   | x = NAME; { Named x }
   | omega_1 = iso; omega_2 = iso; { App { omega_1; omega_2 } }
   | INVERT; omega = iso; { Invert omega }
 
 term:
-  | LPAREN; ts = separated_list(COMMA, term); RPAREN;
-    {
-      match ts with
-      | [] -> Unit
-      | [t] -> t
-      | _ -> Tuple ts
-    }
+  | LPAREN; RPAREN; { Unit }
+  | LPAREN; ts = wtf(COMMA, term); RPAREN; { Tuple ts }
   | x = NAME; { Named x }
   | omega = iso; t = term; { App { omega; t } }
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }

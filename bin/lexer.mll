@@ -22,7 +22,6 @@ rule token = parse
   | "let" { LET }
   | "in" { IN }
   | "iso" { ISO }
-  | "end" { END }
   | "fix" { FIX }
   | "type" { TYPE }
   | "invert" { INVERT }

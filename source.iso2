@@ -7,7 +7,6 @@ let iso aux =
   | (0, S S j) <-> Some (S j, 0)
   | (0, S 0)   <-> Some (0, 0)
   | (0, 0)     <-> None
-  end
 in
 
 let iso cantor_pairing =
@@ -15,12 +14,11 @@ let iso cantor_pairing =
     iso : (nat, nat) <-> nat.
     | x <-> let y = aux x in
             let z =
-              iso : opt <-> nat.
+              (iso : opt <-> nat.
               | Some x <-> let y = phi x in S y
-              | None   <-> 0
-              end y in z
-    end
-  end
+              | None   <-> 0) y in z
 in
 
-cantor_pairing (S S 0, 0)
+let x = (S S 0, S 0) in
+let y = cantor_pairing x in
+(y, (invert cantor_pairing) y)
