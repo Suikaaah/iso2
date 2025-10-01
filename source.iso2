@@ -1,27 +1,26 @@
-type u4  = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
-type nat = Zero | Succ of nat
+type nat = 0 | S of nat
+type opt = None | Some of (nat, nat)
 
-let iso incr =
-  iso : u4 <-> u4.
-  | 0 <-> 1 | 1 <-> 2
-  | 2 <-> 3 | 3 <-> 4
-  | 4 <-> 5 | 5 <-> 6
-  | 6 <-> 7 | 7 <-> 0
+let iso aux =
+  iso : (nat, nat) <-> opt.
+  | (S i, j)   <-> Some (i, S j)
+  | (0, S S j) <-> Some (S j, 0)
+  | (0, S 0)   <-> Some (0, 0)
+  | (0, 0)     <-> None
   end
 in
 
-let iso len =
-  fix convert : nat <-> (nat, u4).
-    iso : nat <-> (nat, u4).
-    | Zero   <-> (Zero, 0)
-    | Succ n <->
-        let (', n) = len t in
-        let n = incr n in
-        (Cons (h, t'), n)
+let iso cantor_pairing =
+  fix phi : (nat, nat) <-> nat.
+    iso : (nat, nat) <-> nat.
+    | x <-> let y = aux x in
+            let z =
+              iso : opt <-> nat.
+              | Some x <-> let y = phi x in S y
+              | None   <-> 0
+              end y in z
     end
   end
 in
 
-let l = Cons (Hello, Cons (Hello, Cons (Hello, Nil))) in
-
-len l
+cantor_pairing (S S 0, 0)

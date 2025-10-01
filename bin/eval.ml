@@ -161,11 +161,6 @@ let rec eval (t : term) : term =
     end
   | LetIso { phi; omega; t } ->
       let omega = eval_iso omega in
-      print_endline "\nBEFORE:";
-      show_term t |> print_endline;
-      print_endline "\nAFTER:";
-      subst_iso_in_term ~from:phi ~into:omega ~what:t
-      |> show_term |> print_endline;
       subst_iso_in_term ~from:phi ~into:omega ~what:t |> eval
   | _ -> t
 

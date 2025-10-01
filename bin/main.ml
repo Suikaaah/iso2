@@ -8,18 +8,20 @@ let () =
   let open Inference in
   let open Eval in
   let program = read_program "source.iso2" in
-  print_endline "AST:";
+  (* print_endline "AST:";
   show_program program |> print_endline;
-  print_endline "\nInfered:";
+  print_endline "\nInfered:"; *)
   let { t; ts } = program in
   let ctx = build_ctx ts in
   begin
     match infer_base ctx t with
-    | Some a ->
+    | Some _ ->
+        (*
         show_base_type a |> print_endline;
         print_endline "\nEvaluated:";
         eval t |> show_term |> print_endline;
         print_endline "\nEvaluated (readable):";
+        *)
         eval t |> p_term |> print_endline
     | None -> "unable to infer type" |> print_endline
   end
