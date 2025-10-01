@@ -55,8 +55,10 @@ let rec subst_iso ~(from : string) ~(into : iso) ~(what : iso) : iso =
           pairs
       in
       Pairs { anot; pairs }
-  | Fix { phi; omega; _ } when phi <> from -> subst_iso omega
-  | Lambda { psi; omega; _ } when psi <> from -> subst_iso omega
+  | Fix { phi; anot; omega } when phi <> from ->
+      Fix { phi; anot; omega = subst_iso omega }
+  | Lambda { psi; anot; omega } when psi <> from ->
+      Lambda { psi; anot; omega = subst_iso omega }
   | Named x when x = from -> into
   | App { omega_1; omega_2 } ->
       App { omega_1 = subst_iso omega_1; omega_2 = subst_iso omega_2 }
@@ -68,7 +70,9 @@ and subst_iso_in_expr ~(from : string) ~(into : iso) ~(what : expr) : expr =
   | Value _ -> what
   | Let { p_1; omega; p_2; e } ->
       let omega = subst_iso ~from ~into ~what:omega in
-      let e = subst_iso_in_expr ~from ~into ~what:e in
+      let e =
+        if contains from p_1 then e else subst_iso_in_expr ~from ~into ~what:e
+      in
       Let { p_1; omega; p_2; e }
 
 let rec subst_iso_in_term ~(from : string) ~(into : iso) ~(what : term) : term =
@@ -77,9 +81,13 @@ let rec subst_iso_in_term ~(from : string) ~(into : iso) ~(what : term) : term =
   match what with
   | Tuple l -> Tuple (List.map subst_iso_in_term l)
   | App { omega; t } -> App { omega = subst_iso omega; t = subst_iso_in_term t }
+  | Let { p; t_1; t_2 } when contains from p ->
+      Let { p; t_1 = subst_iso_in_term t_1; t_2 }
   | Let { p; t_1; t_2 } ->
       Let { p; t_1 = subst_iso_in_term t_1; t_2 = subst_iso_in_term t_2 }
-  | LetIso { phi; omega; t } when phi <> from ->
+  | LetIso { phi; omega; t } when phi = from ->
+      LetIso { phi; omega = subst_iso omega; t }
+  | LetIso { phi; omega; t } ->
       LetIso { phi; omega = subst_iso omega; t = subst_iso_in_term t }
   | _ -> what
 
@@ -153,6 +161,11 @@ let rec eval (t : term) : term =
     end
   | LetIso { phi; omega; t } ->
       let omega = eval_iso omega in
+      print_endline "\nBEFORE:";
+      show_term t |> print_endline;
+      print_endline "\nAFTER:";
+      subst_iso_in_term ~from:phi ~into:omega ~what:t
+      |> show_term |> print_endline;
       subst_iso_in_term ~from:phi ~into:omega ~what:t |> eval
   | _ -> t
 

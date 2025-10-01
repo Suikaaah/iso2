@@ -1,23 +1,27 @@
-type int = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+type u4  = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+type nat = Zero | Succ of nat
 
-let iso add1 =
-  iso : int <-> int.
-  | 0 <-> 1
-  | 1 <-> 2
-  | 2 <-> 3
-  | 3 <-> 4
-  | 4 <-> 5
-  | 5 <-> 6
-  | 6 <-> 7
-  | 7 <-> 0
+let iso incr =
+  iso : u4 <-> u4.
+  | 0 <-> 1 | 1 <-> 2
+  | 2 <-> 3 | 3 <-> 4
+  | 4 <-> 5 | 5 <-> 6
+  | 6 <-> 7 | 7 <-> 0
   end
 in
-let iso add2 =
-  iso : int <-> int.
-  | n <-> let n = add1 n in
-          let n = add1 n in
-          n
+
+let iso len =
+  fix convert : nat <-> (nat, u4).
+    iso : nat <-> (nat, u4).
+    | Zero   <-> (Zero, 0)
+    | Succ n <->
+        let (', n) = len t in
+        let n = incr n in
+        (Cons (h, t'), n)
+    end
   end
 in
-let iso sub2 = invert add2 in
-sub2 6
+
+let l = Cons (Hello, Cons (Hello, Cons (Hello, Nil))) in
+
+len l
