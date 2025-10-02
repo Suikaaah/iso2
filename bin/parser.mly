@@ -19,6 +19,7 @@ open Types
 %token FIX
 %token TYPE
 %token INVERT
+%token REC
 %token OF
 %token <string> NAME
 
@@ -78,7 +79,12 @@ biarrowed:
 
 iso:
   | LPAREN; omega = iso; RPAREN; { omega }
-  | ISO; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); { Pairs { anot; pairs } }
+  | ISO; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed);
+    { Pairs { anot; pairs } }
+
+  | REC; phi = NAME; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed);
+    { Fix { phi; anot; omega = Pairs { anot; pairs } } }
+
   | FIX; phi = NAME; COLON; anot = iso_type; DOT; omega = iso; { Fix { phi; anot; omega } }
   | BACKSLASH; psi = NAME; COLON; anot = iso_type; DOT; omega = iso; { Lambda { psi; anot; omega } }
   | x = NAME; { Named x }

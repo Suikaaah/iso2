@@ -25,6 +25,7 @@ rule token = parse
   | "fix" { FIX }
   | "type" { TYPE }
   | "invert" { INVERT }
+  | "rec" { REC }
   | "of" { OF }
   | string { NAME (lexeme lexbuf) }
 
