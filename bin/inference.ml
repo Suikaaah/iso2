@@ -75,7 +75,8 @@ and infer_iso (ctx : context) (omega : iso) : iso_type option =
   | Pairs { anot; _ } | Fix { anot; _ } -> Some anot
   | Lambda { psi; anot; omega } ->
       let extended = extend ctx.psi [ (psi, anot) ] in
-      infer_iso { psi = extended; delta = ctx.delta } omega
+      let+ t_2 = infer_iso { psi = extended; delta = ctx.delta } omega in
+      Arrow { t_1 = anot; t_2 }
   | Named x -> StrMap.find_opt x ctx.psi
   | App { omega_1; omega_2 } -> begin
       let* omega_1 = infer_iso ctx omega_1 in

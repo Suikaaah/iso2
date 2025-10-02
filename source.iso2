@@ -1,5 +1,9 @@
 type nat = 0 | S of nat
 type opt = None | Some of (nat, nat)
+type a = 1 | 2 | 3
+type b = 11 | 12 | 13
+type al = ANil | ACons of (a, al)
+type bl = BNil | BCons of (b, bl)
 
 let iso aux1 =
   iso : (nat, nat) <-> opt.
@@ -18,12 +22,25 @@ in
 
 let iso cantor_pairing =
   rec phi : (nat, nat) <-> nat.
-  | x <-> let y = aux1 x in
-          let z = (aux2 phi) y in
-          z
+  | x <->
+      let y = aux1 x in
+      let z = (aux2 phi) y in
+      z
+in
+
+let iso map = \f: a <-> b.
+  rec map : al <-> bl.
+  | ANil <-> BNil
+  | ACons (h', t') <->
+      let t = map t' in
+      let h = f h' in
+      BCons (h, t)
 in
 
 let original = (S S 0, S S S 0) in
 let result = cantor_pairing original in
-
-(result, (invert cantor_pairing) result)
+let lmao = (result, (invert cantor_pairing) result) in
+let iso f = iso : a <-> b. 1 <-> 11 | 2 <-> 12 | 3 <-> 13 in
+let l = ACons (2, ACons (1, ACons (3, ANil))) in
+let iso asdf = map f in
+()
