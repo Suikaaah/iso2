@@ -7,7 +7,7 @@ let () =
   let open Types in
   let open Inference in
   let open Eval in
-  let program = read_program "source.iso2" in
+  let program = read_program Sys.argv.(1) in
   (* print_endline "AST:";
   show_program program |> print_endline;
   print_endline "\nInfered:"; *)
