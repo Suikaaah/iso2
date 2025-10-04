@@ -26,10 +26,15 @@ let rec unify_value (ctx : context) (v : value) (a : base_type) :
     (string * base_type) list option =
   match (v, a) with
   | Unit, Unit -> Some []
-  | Named x, _ -> Some [ (x, a) ]
-  | Cted { c; v }, Sum _ -> begin
+  | Named x, _ when is_variable x -> Some [ (x, a) ]
+  | Named x, _ ->
+      let* b = StrMap.find_opt x ctx.delta in
+      if a = b then Some [] else None
+  | Cted { c; v }, b' -> begin
       let* c = StrMap.find_opt c ctx.psi in
-      match c with BiArrow { a; _ } -> unify_value ctx v a | Arrow _ -> None
+      match c with
+      | BiArrow { a; b } when b = b' -> unify_value ctx v a
+      | _ -> None
     end
   | Tuple t, Product p ->
       let* combined = combine t p in
@@ -72,7 +77,22 @@ and infer_base (ctx : context) (t : term) : base_type option =
 
 and infer_iso (ctx : context) (omega : iso) : iso_type option =
   match omega with
-  | Pairs { anot; _ } | Fix { anot; _ } -> Some anot
+  | Pairs { anot = BiArrow { a; b } as anot; pairs } ->
+      let is_ok (v, e) =
+        let infered =
+          let* unified = unify_value ctx v a in
+          let extended = extend ctx.delta unified in
+          infer_base_in_expr { psi = ctx.psi; delta = extended } e
+        in
+        match infered with Some b' when b' = b -> true | _ -> false
+      in
+      let is_ok = List.for_all is_ok pairs in
+      if is_ok then Some anot else None
+  | Pairs _ -> None
+  | Fix { phi; anot; omega } ->
+      let extended = extend ctx.psi [ (phi, anot) ] in
+      let* omega = infer_iso { psi = extended; delta = ctx.delta } omega in
+      if omega = anot then Some anot else None
   | Lambda { psi; anot; omega } ->
       let extended = extend ctx.psi [ (psi, anot) ] in
       let+ t_2 = infer_iso { psi = extended; delta = ctx.delta } omega in

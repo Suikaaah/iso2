@@ -118,7 +118,6 @@ let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
 
 let rec unify_value (u : value) (v : value) : (string * value) list =
   match (u, v) with
-  | Unit, _ -> []
   | Named x, _ when is_variable x -> [ (x, v) ]
   | Cted { v = v_1; _ }, Cted { v = v_2; _ } -> unify_value v_1 v_2
   | Tuple l, Tuple r ->
