@@ -23,15 +23,14 @@ let rec invert (omega : iso) : iso =
       App { omega_1 = invert omega_1; omega_2 = invert omega_2 }
   | Invert omega -> omega
 
-let rec unify (p : pat) (t : term) : (string * term) list option =
+let rec unify (p : pat) (t : term) : (string * term) list =
   match (p, t) with
-  | Named x, _ -> Some [ (x, t) ]
+  | Named x, _ -> [ (x, t) ]
   | Tuple p, Tuple t ->
-      let* combined = combine p t in
+      let combined = combine p t |> Option.get in
       let nested = List.map (fun (p, t) -> unify p t) combined in
-      let+ nested = bind_all nested in
       List.flatten nested
-  | _ -> None
+  | _ -> []
 
 let rec subst ~(from : string) ~(into : term) ~(what : term) : term =
   let subst what = subst ~from ~into ~what in
@@ -91,17 +90,18 @@ let rec subst_iso_in_term ~(from : string) ~(into : iso) ~(what : term) : term =
       LetIso { phi; omega = subst_iso omega; t = subst_iso_in_term t }
   | _ -> what
 
-let rec value_of_term : term -> value option = function
-  | Unit -> Some Unit
-  | Named x -> Some (Named x)
+let rec value_of_term (t : term) : value =
+  match t with
+  | Unit -> Unit
+  | Named x -> Named x
   | Tuple l ->
-      let+ l = List.map value_of_term l |> bind_all in
+      let l = List.map value_of_term l in
       let lmao : value = Tuple l in
       lmao
   | App { omega = Named c; t : term } ->
-      let+ v = value_of_term t in
+      let v = value_of_term t in
       Cted { c; v }
-  | _ -> None
+  | _ -> failwith "unreachable (unreduced term)"
 
 let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
   let rec vv : value * value -> bool = function
@@ -114,7 +114,9 @@ let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
         Option.map (List.for_all vv) (combine l r) |> value_or false
     | _ -> false
   in
-  List.find_opt (fun (v', _) -> vv (v', v)) l
+  let found = List.find_opt (fun (v', _) -> vv (v', v)) l in
+  if Option.is_none found then print_endline "no matching pair found" else ();
+  found
 
 let rec unify_value (u : value) (v : value) : (string * value) list =
   match (u, v) with
@@ -133,9 +135,9 @@ let rec eval (t : term) : term =
   | Tuple l -> Tuple (List.map eval l)
   | App { omega; t = u } -> begin
       let omega = eval_iso omega in
-      let v = eval u |> value_of_term in
-      match (omega, v) with
-      | Pairs { pairs; _ }, Some v' ->
+      let v' = eval u |> value_of_term in
+      match omega with
+      | Pairs { pairs; _ } ->
           let opt =
             let+ v, e = match_pair pairs v' in
             let unified = unify_value v v' in
@@ -150,13 +152,11 @@ let rec eval (t : term) : term =
     end
   | Let { p; t_1; t_2 } -> begin
       let t_1 = eval t_1 in
-      match unify p t_1 with
-      | Some unified ->
-          List.fold_left
-            (fun t (from, into) -> subst ~from ~into ~what:t)
-            t_2 unified
-          |> eval
-      | None -> t
+      let unified = unify p t_1 in
+      List.fold_left
+        (fun t (from, into) -> subst ~from ~into ~what:t)
+        t_2 unified
+      |> eval
     end
   | LetIso { phi; omega; t } ->
       let omega = eval_iso omega in

@@ -72,6 +72,10 @@ let rec term_of_expr : expr -> term = function
           t_2 = term_of_expr e;
         }
 
+let rec value_of_expr : expr -> value = function
+  | Value v -> v
+  | Let { e; _ } -> value_of_expr e
+
 let rec p_term : term -> string = function
   | Unit -> "()"
   | Named x -> x

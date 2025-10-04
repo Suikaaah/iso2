@@ -1,28 +1,3 @@
-type nat = 0 | S of nat
-type opt = None | Some of (nat, nat)
+type nat = 
 
-let iso aux1 =
-  iso : (nat, nat) <-> opt.
-  | (S i, j)   <-> Some (i, S j)
-  | (0, S S j) <-> Some (S j, 0)
-  | (0, S 0)   <-> Some (0, 0)
-  | (0, 0)     <-> None
-in
-
-let iso aux2 =
-  \phi : (nat, nat) <-> nat.
-    iso : opt <-> nat.
-    | Some x <-> let y = phi x in S y
-    | None   <-> 0
-in
-
-let iso cantor_pairing =
-  rec phi : (nat, nat) <-> nat.
-  | x <->
-      let y = aux1 x in
-      let z = (aux2 phi) y in
-      z
-in
-
-let result = cantor_pairing (S S 0, S S S 0) in
-(result, (invert cantor_pairing) result)
+(invert iso : t <-> t. B <-> B | B <-> C | C <-> A) C

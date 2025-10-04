@@ -51,6 +51,7 @@ type program = { ts : typedef list; t : term } [@@deriving show]
 val term_of_value : value -> term
 val term_of_pat : pat -> term
 val term_of_expr : expr -> term
+val value_of_expr : expr -> value
 val p_term : term -> string
 val contains : string -> pat -> bool
 val contains_value : string -> value -> bool

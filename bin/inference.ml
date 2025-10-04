@@ -5,6 +5,18 @@ type psi = iso_type StrMap.t
 type delta = base_type StrMap.t
 type context = { psi : psi; delta : delta }
 
+let rec is_orthogonal (u : value) (v : value) : bool =
+  match (u, v) with
+  | Unit, Unit -> false
+  | Named x, _ when is_variable x -> false
+  | _, Named x when is_variable x -> false
+  | Named x, Named y when x = y -> false
+  | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
+      c_1 <> c_2 || is_orthogonal v_1 v_2
+  | Tuple l, Tuple r ->
+      combine l r |> Option.get |> List.exists (fun (u, v) -> is_orthogonal u v)
+  | _ -> true
+
 let rec invert_iso_type : iso_type -> iso_type = function
   | BiArrow { a; b } -> BiArrow { a = b; b = a }
   | Arrow { t_1; t_2 } ->
@@ -86,8 +98,16 @@ and infer_iso (ctx : context) (omega : iso) : iso_type option =
         in
         match infered with Some b' when b' = b -> true | _ -> false
       in
-      let is_ok = List.for_all is_ok pairs in
-      if is_ok then Some anot else None
+      if List.for_all is_ok pairs then
+        let is_orthogonal_v =
+          List.map (fun (v, _) -> v) pairs |> for_all_pairs is_orthogonal
+        in
+        let is_orthogonal_e =
+          List.map (fun (_, e) -> value_of_expr e) pairs
+          |> for_all_pairs is_orthogonal
+        in
+        if is_orthogonal_e && is_orthogonal_v then Some anot else None
+      else None
   | Pairs _ -> None
   | Fix { phi; anot; omega } ->
       let extended = extend ctx.psi [ (phi, anot) ] in

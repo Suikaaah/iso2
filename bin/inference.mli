@@ -5,6 +5,7 @@ type psi = iso_type StrMap.t
 type delta = base_type StrMap.t
 type context = { psi : psi; delta : delta }
 
+val is_orthogonal : value -> value -> bool
 val invert_iso_type : iso_type -> iso_type
 val unify_pat : pat -> base_type -> (string * base_type) list option
 

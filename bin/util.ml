@@ -31,3 +31,7 @@ let is_variable (value : string) : bool =
   &&
   let first = String.get value 0 |> Char.code in
   Char.code 'a' <= first && first <= Char.code 'z'
+
+let rec for_all_pairs (f : 'a -> 'a -> bool) : 'a list -> bool = function
+  | [] -> true
+  | hd :: tl -> List.for_all (f hd) tl && for_all_pairs f tl
