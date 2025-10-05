@@ -53,6 +53,7 @@ val term_of_pat : pat -> term
 val term_of_expr : expr -> term
 val value_of_expr : expr -> value
 val p_term : term -> string
+val p_value : value -> string
 val contains : string -> pat -> bool
 val contains_value : string -> value -> bool
 val contains_pairs : string -> (value * expr) list -> bool

@@ -85,6 +85,15 @@ let rec p_term : term -> string = function
   | App { omega = Named omega; t } -> omega ^ " " ^ p_term t
   | _ -> "<bruh>"
 
+let rec p_value : value -> string = function
+  | Unit -> "()"
+  | Named x -> x
+  | Cted { c : string; v : value } -> c ^ " " ^ p_value v
+  | Tuple (hd :: tl) ->
+      let init = "(" ^ p_value hd in
+      List.fold_left (fun acc x -> acc ^ ", " ^ p_value x) init tl ^ ")"
+  | _ -> "<bruh>"
+
 let rec contains (what : string) : pat -> bool = function
   | Named x -> x = what
   | Tuple l -> List.exists (contains what) l

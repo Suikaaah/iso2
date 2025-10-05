@@ -9,18 +9,13 @@ let iso aux1 =
   | (0, 0)     <-> None
 in
 
-let iso aux2 =
-  \phi : (nat, nat) <-> nat.
-    iso : opt <-> nat.
-    | Some x <-> let y = phi x in S y
-    | None   <-> 0
-in
-
 let iso cantor_pairing =
   rec phi : (nat, nat) <-> nat.
   | x <->
       let y = aux1 x in
-      let z = (aux2 phi) y in
+      let z = (iso : opt <-> nat.
+              | Some x <-> let y = phi x in S y
+              | None   <-> 0) y in
       z
 in
 

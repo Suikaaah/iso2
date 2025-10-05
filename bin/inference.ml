@@ -7,7 +7,7 @@ type context = { psi : psi; delta : delta }
 
 let rec is_orthogonal (u : value) (v : value) : string option =
   let msg =
-    lazy (Some (show_value u ^ " and " ^ show_value v ^ " are not orthogonal"))
+    lazy (Some (p_value u ^ " and " ^ p_value v ^ " are not orthogonal"))
   in
   match (u, v) with
   | Unit, Unit -> Lazy.force msg
