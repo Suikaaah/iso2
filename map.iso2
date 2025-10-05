@@ -1,7 +1,7 @@
 type a = 0 | 1 | 2
 type b = A | B | C
-type al = ANil | ACons of (a, al)
-type bl = BNil | BCons of (b, bl)
+type al = ANil | ACons (a, al)
+type bl = BNil | BCons (b, bl)
 
 let iso map = \f: a <-> b.
   rec map : al <-> bl.
@@ -14,4 +14,4 @@ in
 
 let iso f = iso : a <-> b. 0 <-> A | 1 <-> B | 2 <-> C in
 let result = (map f) ACons (1, ACons (0, ACons (2, ANil))) in
-(result, (invert map f) result)
+(result, result |> invert map f)

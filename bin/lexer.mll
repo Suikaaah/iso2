@@ -16,6 +16,7 @@ rule token = parse
   | "." { DOT }
   | "," { COMMA }
   | ":" { COLON }
+  | "|>" { TRIANGLE }
   | "->" { ARROW }
   | "<->" { BIARROW }
   | "=" { EQUAL }
@@ -26,6 +27,5 @@ rule token = parse
   | "type" { TYPE }
   | "invert" { INVERT }
   | "rec" { REC }
-  | "of" { OF }
   | string { NAME (lexeme lexbuf) }
 

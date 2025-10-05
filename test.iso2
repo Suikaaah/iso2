@@ -1,0 +1,16 @@
+type nat = 0 | S nat
+
+let iso twice =
+  \f : nat <-> nat.
+    iso : nat <-> nat.
+    | n <->
+        let n = f n in
+        let n = f n in
+        n
+in
+
+let iso lmao =
+  iso : nat <-> nat. n <-> S n
+in
+
+(twice lmao) 0

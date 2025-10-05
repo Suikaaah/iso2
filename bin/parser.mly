@@ -10,6 +10,7 @@ open Types
 %token DOT
 %token COMMA
 %token COLON
+%token TRIANGLE
 %token ARROW
 %token BIARROW
 %token EQUAL
@@ -20,7 +21,6 @@ open Types
 %token TYPE
 %token INVERT
 %token REC
-%token OF
 %token <string> NAME
 
 %start <program> program
@@ -34,6 +34,7 @@ open Types
 %type <variant> variant
 %type <typedef> typedef
 %type <value * expr> biarrowed
+%right ARROW
 %%
 
 wtf(separator, X):
@@ -47,7 +48,7 @@ typedef:
   | TYPE; t = NAME; EQUAL; PIPE?; vs = separated_nonempty_list(PIPE, variant); { { t; vs } }
 
 variant:
-  | c = NAME; OF; a = base_type; { Iso { c; a } }
+  | c = NAME; a = base_type; { Iso { c; a } }
   | c = NAME; { Value c }
 
 base_type:
@@ -73,6 +74,7 @@ pat:
 expr:
   | v = value; { Value v }
   | LET; p_1 = pat; EQUAL; omega = iso; p_2 = pat; IN; e = expr; { Let { p_1; omega; p_2; e } }
+  | LET; p_1 = pat; EQUAL; p_2 = pat; TRIANGLE; omega = iso; IN; e = expr; { Let { p_1; omega; p_2; e } }
 
 biarrowed:
   | v = value; BIARROW; e = expr; { (v, e) }
@@ -96,5 +98,6 @@ term:
   | LPAREN; ts = wtf(COMMA, term); RPAREN; { Tuple ts }
   | x = NAME; { Named x }
   | omega = iso; t = term; { App { omega; t } }
+  | t = term; TRIANGLE; omega = iso; { App { omega; t } }
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
   | LET; ISO; phi = NAME; EQUAL; omega = iso; IN; t = term { LetIso { phi; omega; t } }
