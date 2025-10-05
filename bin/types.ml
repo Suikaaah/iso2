@@ -106,3 +106,8 @@ let rec contains_value (what : string) : value -> bool = function
 
 let contains_pairs (what : string) (pairs : (value * expr) list) : bool =
   List.exists (fun (v, _) -> contains_value what v) pairs
+
+let rec lambdas_of_params : (string * iso_type) list -> iso -> iso = function
+  | [] -> fun omega -> omega
+  | (psi, anot) :: tl ->
+      fun omega -> Lambda { psi; anot; omega = lambdas_of_params tl omega }

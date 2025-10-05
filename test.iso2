@@ -1,13 +1,18 @@
-type nat = 0 | S nat
+type 自然数 = 零 | 次 自然数
+type 任意   = 無 | 有 自然数
 
-let iso twice = \f : nat <-> nat.
-  iso : nat <-> nat.
-  | n <->
-      let n = f n in
-      let n = f n in
-      n
+let iso 写す (関数 : 自然数 <-> 自然数) : 任意 <-> 任意 =
+  | 無   <-> 無
+  | 有 n <-> let n = 関数 n in 有 n
 in
 
-let iso lmao = iso : nat <-> nat. n <-> S n in
+let iso 面白い : 自然数 <-> 自然数 =
+  | 零      <-> 次 零
+  | 次 零   <-> 零
+  | 次 次 n <-> 次 次 n
+in
 
-(twice lmao) 0
+let iso なにこれ = 写す 面白い in
+
+(なにこれ 有 次 零, なにこれ 無, なにこれ 有 次 次 次 零)
+

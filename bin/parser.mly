@@ -34,6 +34,7 @@ open Types
 %type <variant> variant
 %type <typedef> typedef
 %type <value * expr> biarrowed
+%type <string * iso_type> param
 %right ARROW
 %%
 
@@ -93,10 +94,34 @@ iso:
   | omega_1 = iso; omega_2 = iso; { App { omega_1; omega_2 } }
   | INVERT; omega = iso; { Invert omega }
 
+param:
+  | LPAREN; phi = NAME; COLON; t = iso_type; RPAREN; { (phi, t) }
+
 term:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; ts = wtf(COMMA, term); RPAREN; { Tuple ts }
   | x = NAME; { Named x }
   | omega = iso; t = term; { App { omega; t } }
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
-  | LET; ISO; phi = NAME; EQUAL; omega = iso; IN; t = term { LetIso { phi; omega; t } }
+  | LET; ISO; phi = NAME; params = param*; EQUAL; omega = iso; IN; t = term;
+    { LetIso { phi; omega = lambdas_of_params params omega; t } }
+
+  | LET; REC; phi = NAME; params = param*; COLON; anot = iso_type; EQUAL; omega = iso; IN; t = term;
+    {
+      let omega = Fix { phi; anot; omega } in
+      LetIso { phi; omega = lambdas_of_params params omega; t }
+    }
+
+  | LET; ISO; phi = NAME; params = param*; COLON; anot = iso_type; EQUAL;
+    PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); IN; t = term
+    {
+      let pairs = Pairs { anot; pairs } in
+      LetIso { phi; omega = lambdas_of_params params pairs; t }
+    }
+
+  | LET; REC; phi = NAME; params = param*; COLON; anot = iso_type; EQUAL;
+    PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); IN; t = term
+    {
+      let pairs = Fix { phi; anot; omega = Pairs { anot; pairs } } in
+      LetIso { phi; omega = lambdas_of_params params pairs; t }
+    }

@@ -57,3 +57,4 @@ val p_value : value -> string
 val contains : string -> pat -> bool
 val contains_value : string -> value -> bool
 val contains_pairs : string -> (value * expr) list -> bool
+val lambdas_of_params : (string * iso_type) list -> iso -> iso
