@@ -5,17 +5,24 @@ type psi = iso_type StrMap.t
 type delta = base_type StrMap.t
 type context = { psi : psi; delta : delta }
 
-let rec is_orthogonal (u : value) (v : value) : bool =
+let rec is_orthogonal (u : value) (v : value) : string option =
+  let msg =
+    lazy (Some (show_value u ^ " and " ^ show_value v ^ " are not orthogonal"))
+  in
   match (u, v) with
-  | Unit, Unit -> false
-  | Named x, _ when is_variable x -> false
-  | _, Named x when is_variable x -> false
-  | Named x, Named y when x = y -> false
+  | Unit, Unit -> Lazy.force msg
+  | Named x, _ when is_variable x -> Lazy.force msg
+  | _, Named x when is_variable x -> Lazy.force msg
+  | Named x, Named y when x = y -> Lazy.force msg
   | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
-      c_1 <> c_2 || is_orthogonal v_1 v_2
+      if c_1 = c_2 then is_orthogonal v_1 v_2 else None
   | Tuple l, Tuple r ->
-      combine l r |> Option.get |> List.exists (fun (u, v) -> is_orthogonal u v)
-  | _ -> true
+      let mapped =
+        combine l r |> Option.get |> List.map (fun (u, v) -> is_orthogonal u v)
+      in
+      let is_error = List.for_all Option.is_some mapped in
+      if is_error then Lazy.force msg else None
+  | _ -> None
 
 let rec invert_iso_type : iso_type -> iso_type = function
   | BiArrow { a; b } -> BiArrow { a = b; b = a }
@@ -55,6 +62,17 @@ let rec unify_value (ctx : context) (v : value) (a : base_type) :
       List.flatten nested
   | _ -> None
 
+let invert_pairs (pairs : (value * expr) list) : (value * expr) list =
+  let rec invert_expr (e : expr) (acc : expr) =
+    match e with
+    | Value v -> (v, acc)
+    | Let { p_1; omega; p_2; e } ->
+        invert_expr e
+          (Let { p_1 = p_2; omega = Invert omega; p_2 = p_1; e = acc })
+  in
+  let invert_pair (v, e) = invert_expr e (Value v) in
+  List.map invert_pair pairs
+
 let rec infer_base_in_expr (ctx : context) (e : expr) : base_type option =
   match e with
   | Value v -> infer_base ctx (term_of_value v)
@@ -89,25 +107,36 @@ and infer_base (ctx : context) (t : term) : base_type option =
 
 and infer_iso (ctx : context) (omega : iso) : iso_type option =
   match omega with
-  | Pairs { anot = BiArrow { a; b } as anot; pairs } ->
-      let is_ok (v, e) =
-        let infered =
-          let* unified = unify_value ctx v a in
-          let extended = extend ctx.delta unified in
-          infer_base_in_expr { psi = ctx.psi; delta = extended } e
+  | Pairs { anot = BiArrow { a; b }; pairs } ->
+      let infer_pairs a b pairs =
+        let well_typed (v, e) =
+          let infered =
+            let* unified = unify_value ctx v a in
+            let extended = extend ctx.delta unified in
+            infer_base_in_expr { psi = ctx.psi; delta = extended } e
+          in
+          match infered with Some b' when b' = b -> true | _ -> false
         in
-        match infered with Some b' when b' = b -> true | _ -> false
+        let pred u v =
+          match is_orthogonal u v with
+          | None -> true
+          | Some msg ->
+              print_endline msg;
+              false
+        in
+        if List.for_all well_typed pairs then
+          let is_orthogonal_v =
+            List.map (fun (v, _) -> v) pairs |> for_all_pairs pred
+          in
+          let is_orthogonal_e =
+            List.map (fun (_, e) -> value_of_expr e) pairs |> for_all_pairs pred
+          in
+          if is_orthogonal_e && is_orthogonal_v then Some (BiArrow { a; b })
+          else None
+        else None
       in
-      if List.for_all is_ok pairs then
-        let is_orthogonal_v =
-          List.map (fun (v, _) -> v) pairs |> for_all_pairs is_orthogonal
-        in
-        let is_orthogonal_e =
-          List.map (fun (_, e) -> value_of_expr e) pairs
-          |> for_all_pairs is_orthogonal
-        in
-        if is_orthogonal_e && is_orthogonal_v then Some anot else None
-      else None
+      let* _ = infer_pairs b a (invert_pairs pairs) in
+      infer_pairs a b pairs
   | Pairs _ -> None
   | Fix { phi; anot; omega } ->
       let extended = extend ctx.psi [ (phi, anot) ] in

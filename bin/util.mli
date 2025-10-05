@@ -1,5 +1,7 @@
 module StrMap : module type of Map.Make (String)
 
+type 'a myresult = Ok of 'a | Err of string
+
 val ( let* ) : 'a option -> ('a -> 'b option) -> 'b option
 val ( let+ ) : 'a option -> ('a -> 'b) -> 'b option
 val bind_all : 'a option list -> 'a list option

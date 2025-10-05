@@ -1,5 +1,7 @@
 module StrMap = Map.Make (String)
 
+type 'a myresult = Ok of 'a | Err of string
+
 let ( let* ) : 'a option -> ('a -> 'b option) -> 'b option = Option.bind
 let ( let+ ) (x : 'a option) (f : 'a -> 'b) = Option.map f x
 

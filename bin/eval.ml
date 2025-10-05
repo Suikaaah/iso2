@@ -2,7 +2,6 @@ open Types
 open Util
 
 let rec invert (omega : iso) : iso =
-  let open Inference in
   match omega with
   | Pairs { anot; pairs } ->
       let rec invert_expr (e : expr) (acc : expr) =
@@ -13,11 +12,16 @@ let rec invert (omega : iso) : iso =
               (Let { p_1 = p_2; omega = invert omega; p_2 = p_1; e = acc })
       in
       let invert_pair (v, e) = invert_expr e (Value v) in
-      Pairs { anot = invert_iso_type anot; pairs = List.map invert_pair pairs }
+      Pairs
+        {
+          anot = Inference.invert_iso_type anot;
+          pairs = List.map invert_pair pairs;
+        }
   | Fix { phi; anot; omega } ->
-      Fix { phi; anot = invert_iso_type anot; omega = invert omega }
+      Fix { phi; anot = Inference.invert_iso_type anot; omega = invert omega }
   | Lambda { psi; anot; omega } ->
-      Lambda { psi; anot = invert_iso_type anot; omega = invert omega }
+      Lambda
+        { psi; anot = Inference.invert_iso_type anot; omega = invert omega }
   | Named _ -> omega
   | App { omega_1; omega_2 } ->
       App { omega_1 = invert omega_1; omega_2 = invert omega_2 }
