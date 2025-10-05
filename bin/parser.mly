@@ -98,6 +98,5 @@ term:
   | LPAREN; ts = wtf(COMMA, term); RPAREN; { Tuple ts }
   | x = NAME; { Named x }
   | omega = iso; t = term; { App { omega; t } }
-  | t = term; TRIANGLE; omega = iso; { App { omega; t } }
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
   | LET; ISO; phi = NAME; EQUAL; omega = iso; IN; t = term { LetIso { phi; omega; t } }
