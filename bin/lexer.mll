@@ -8,6 +8,7 @@ let string = [^ '(' ')' '|' '\\' '.' ',' ':' '-' '<' '>' '=' ' ' '\t' '\r' '\n']
 
 rule token = parse
   | eof { EOF }
+  | "(*" ([^'*'] | '*' [^')'])* "*)" { token lexbuf }
   | white { token lexbuf }
   | "(" { LPAREN }
   | ")" { RPAREN }
