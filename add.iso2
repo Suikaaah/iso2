@@ -1,0 +1,20 @@
+type nat = 0 | S nat
+type idk = Pair (nat, nat) | Single nat
+
+let iso step : (nat, nat) <-> idk =
+  | (m, S n) <-> Pair (S m, n)
+  | (m, 0)   <-> Single m
+in
+
+let rec add : (nat, nat) <-> (nat, nat) =
+  | x <->
+      let x = step x in
+      let x = x |>
+        iso : idk <-> (nat, nat).
+        | Pair x   <-> let (m, n) = add x in (m, S n)
+        | Single m <-> (m, 0)
+      in x
+in
+
+let result = add (S S 0, S S S 0) in
+(result, (invert add) result)
