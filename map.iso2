@@ -3,10 +3,10 @@ type b = A | B | C
 type al = ANil | ACons (a, al)
 type bl = BNil | BCons (b, bl)
 
-let rec map (f: a <-> b) : al <-> bl =
+let rec map (f : a <-> b) : al <-> bl =
   | ACons (h', t') <->
-      let t = map t' in
       let h = f h' in
+      let t = map t' in
       BCons (h, t)
   | ANil <-> BNil
 in

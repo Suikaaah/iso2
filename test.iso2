@@ -1,18 +1,26 @@
-type 自然数 = 零 | 次 自然数
-type 任意   = 無 | 有 自然数
+type nat = 0 | S nat
+type opt = None | Some nat
 
-let iso 写す (関数 : 自然数 <-> 自然数) : 任意 <-> 任意 =
-  | 無   <-> 無
-  | 有 n <-> let n = 関数 n in 有 n
+let iso map (f : nat <-> nat) : opt <-> opt =
+  | None   <-> None
+  | Some n <-> let n = f n in Some n
 in
 
-let iso 面白い : 自然数 <-> 自然数 =
-  | 零      <-> 次 零
-  | 次 零   <-> 零
-  | 次 次 n <-> 次 次 n
+let iso ass : nat <-> nat =
+  | 0     <-> S 0
+  | S 0   <-> 0
+  | S S n <-> S S n
 in
 
-let iso なにこれ = 写す 面白い in
+let iso id : nat <-> nat =
+  | n <-> n
+in
 
-(なにこれ 有 次 零, なにこれ 無, なにこれ 有 次 次 次 零)
+let iso dup : nat <-> (nat, nat) =
+  | m <-> let n = id m in (m, n)
+in
+
+let iso wtf = map ass in
+
+(wtf Some S 0, wtf None, wtf Some S S S 0, dup S S 0)
 

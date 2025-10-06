@@ -31,24 +31,22 @@ let rec invert_iso_type : iso_type -> iso_type = function
       let t_2 = invert_iso_type t_2 in
       Arrow { t_1; t_2 }
 
-let rec unify_pat (p : pat) (a : base_type) : (string * base_type) list option =
+let rec unify_pat (p : pat) (a : base_type) : delta option =
   match (p, a) with
-  | Named x, _ -> Some [ (x, a) ]
+  | Named x, _ -> Some (StrMap.singleton x a)
   | Tuple t, Product p ->
       let* combined = combine t p in
-      let nested = List.map (fun (p, a) -> unify_pat p a) combined in
-      let+ nested = bind_all nested in
-      List.flatten nested
+      let+ list = List.map (fun (p, a) -> unify_pat p a) combined |> bind_all in
+      List.fold_left (fun acc delta -> union_nodup acc delta) StrMap.empty list
   | _ -> None
 
-let rec unify_value (ctx : context) (v : value) (a : base_type) :
-    (string * base_type) list option =
+let rec unify_value (ctx : context) (v : value) (a : base_type) : delta option =
   match (v, a) with
-  | Unit, Unit -> Some []
-  | Named x, _ when is_variable x -> Some [ (x, a) ]
+  | Unit, Unit -> Some StrMap.empty
+  | Named x, _ when is_variable x -> Some (StrMap.singleton x a)
   | Named x, _ ->
       let* b = StrMap.find_opt x ctx.delta in
-      if a = b then Some [] else None
+      if a = b then Some StrMap.empty else None
   | Cted { c; v }, b' -> begin
       let* c = StrMap.find_opt c ctx.psi in
       match c with
@@ -57,9 +55,10 @@ let rec unify_value (ctx : context) (v : value) (a : base_type) :
     end
   | Tuple t, Product p ->
       let* combined = combine t p in
-      let nested = List.map (fun (v, a) -> unify_value ctx v a) combined in
-      let+ nested = bind_all nested in
-      List.flatten nested
+      let+ list =
+        List.map (fun (v, a) -> unify_value ctx v a) combined |> bind_all
+      in
+      List.fold_left (fun acc delta -> union_nodup acc delta) StrMap.empty list
   | _ -> None
 
 let invert_pairs (pairs : (value * expr) list) : (value * expr) list =
@@ -80,7 +79,7 @@ let rec infer_base_in_expr (ctx : context) (e : expr) : base_type option =
       let* omega = infer_iso ctx omega in
       let* b = match omega with BiArrow { b; _ } -> Some b | _ -> None in
       let* unified = unify_pat p_1 b in
-      let extended = extend ctx.delta unified in
+      let extended = union ~weak:ctx.delta ~strong:unified in
       infer_base_in_expr { psi = ctx.psi; delta = extended } e
 
 and infer_base (ctx : context) (t : term) : base_type option =
@@ -98,7 +97,7 @@ and infer_base (ctx : context) (t : term) : base_type option =
   | Let { p; t_1; t_2 } ->
       let* a = infer_base ctx t_1 in
       let* unified = unify_pat p a in
-      let extended = extend ctx.delta unified in
+      let extended = union ~weak:ctx.delta ~strong:unified in
       infer_base { psi = ctx.psi; delta = extended } t_2
   | LetIso { phi; omega; t } ->
       let* omega = infer_iso ctx omega in
@@ -112,7 +111,7 @@ and infer_iso (ctx : context) (omega : iso) : iso_type option =
         let well_typed (v, e) =
           let infered =
             let* unified = unify_value ctx v a in
-            let extended = extend ctx.delta unified in
+            let extended = union ~weak:ctx.delta ~strong:unified in
             infer_base_in_expr { psi = ctx.psi; delta = extended } e
           in
           match infered with Some b' when b' = b -> true | _ -> false

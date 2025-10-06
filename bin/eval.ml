@@ -105,7 +105,7 @@ let rec value_of_term (t : term) : value =
   | App { omega = Named c; t : term } ->
       let v = value_of_term t in
       Cted { c; v }
-  | _ -> failwith "unreachable (unreduced term)"
+  | _ -> failwith "unreduced term"
 
 let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
   let rec vv : value * value -> bool = function

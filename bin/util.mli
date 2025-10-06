@@ -10,3 +10,5 @@ val extend : 'a StrMap.t -> (string * 'a) list -> 'a StrMap.t
 val value_or : 'a -> 'a option -> 'a
 val is_variable : string -> bool
 val for_all_pairs : ('a -> 'a -> bool) -> 'a list -> bool
+val union_nodup : 'a StrMap.t -> 'a StrMap.t -> 'a StrMap.t
+val union : weak:'a StrMap.t -> strong:'a StrMap.t -> 'a StrMap.t

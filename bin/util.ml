@@ -37,3 +37,11 @@ let is_variable (value : string) : bool =
 let rec for_all_pairs (f : 'a -> 'a -> bool) : 'a list -> bool = function
   | [] -> true
   | hd :: tl -> List.for_all (f hd) tl && for_all_pairs f tl
+
+let union_nodup (l : 'a StrMap.t) (r : 'a StrMap.t) : 'a StrMap.t =
+  let merger key _ _ = key ^ " exists" |> failwith in
+  StrMap.union merger l r
+
+let union ~(weak : 'a StrMap.t) ~(strong : 'a StrMap.t) : 'a StrMap.t =
+  let merger _ _ y = Some y in
+  StrMap.union merger weak strong
