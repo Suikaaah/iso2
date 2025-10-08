@@ -49,5 +49,6 @@ val show_iso_type : iso_type -> string
 val show_value : value -> string
 val show_pat : pat -> string
 val show_expr : expr -> string
+val show_pairs : (value * expr) list -> string
 val show_iso : iso -> string
 val show_term : term -> string

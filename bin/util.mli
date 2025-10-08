@@ -9,9 +9,9 @@ val ( let++ ) : 'a myresult -> ('a -> 'b) -> 'b myresult
 val bind_all : 'a myresult list -> 'a list myresult
 val combine : 'a list -> 'b list -> ('a * 'b) list option
 val extend : 'a StrMap.t -> (string * 'a) list -> 'a StrMap.t
-val value_or : 'a -> 'a option -> 'a
 val is_variable : string -> bool
 val for_all_pairs : ('a -> 'a -> 'b option) -> 'a list -> 'b option
-val union_nodup : 'a StrMap.t -> 'a StrMap.t -> 'a StrMap.t
+val union_nodup : 'a StrMap.t -> 'a StrMap.t -> 'a StrMap.t myresult
 val union : weak:'a StrMap.t -> strong:'a StrMap.t -> 'a StrMap.t
 val show_list : ('a -> string) -> 'a -> 'a list -> string
+val boldred : string -> string

@@ -40,10 +40,12 @@ let rec unify_pat (p : pat) (a : base_type) : delta myresult =
         combine tpl prd
         |> Option.to_result ~none:("arity mismatch: " ^ Lazy.force msg)
       in
-      let++ list =
+      let** list =
         List.map (fun (p, a) -> unify_pat p a) combined |> bind_all
       in
-      List.fold_left (fun acc delta -> union_nodup acc delta) StrMap.empty list
+      List.fold_left
+        (fun acc delta -> Result.bind acc (fun acc -> union_nodup acc delta))
+        (Ok StrMap.empty) list
   | _ -> Error ("unable to unify " ^ Lazy.force msg)
 
 let rec unify_value (ctx : context) (v : value) (a : base_type) : delta myresult
@@ -85,10 +87,12 @@ let rec unify_value (ctx : context) (v : value) (a : base_type) : delta myresult
         combine t p
         |> Option.to_result ~none:("arity mismatch: " ^ Lazy.force msg)
       in
-      let++ list =
+      let** list =
         List.map (fun (v, a) -> unify_value ctx v a) combined |> bind_all
       in
-      List.fold_left (fun acc delta -> union_nodup acc delta) StrMap.empty list
+      List.fold_left
+        (fun acc delta -> Result.bind acc (fun acc -> union_nodup acc delta))
+        (Ok StrMap.empty) list
   | _ -> Error ("unable to unify " ^ Lazy.force msg)
 
 let invert_pairs (pairs : (value * expr) list) : (value * expr) list =

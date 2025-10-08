@@ -26,10 +26,6 @@ let extend (what : 'a StrMap.t) (list : (string * 'a) list) : 'a StrMap.t =
   let folder acc (key, value) = StrMap.add key value acc in
   List.fold_left folder what list
 
-let value_or (value : 'a) : 'a option -> 'a = function
-  | None -> value
-  | Some value -> value
-
 let is_variable (value : string) : bool =
   0 < String.length value
   &&
@@ -45,9 +41,14 @@ let rec for_all_pairs (f : 'a -> 'a -> 'b option) : 'a list -> 'b option =
       | None -> for_all_pairs f tl
     end
 
-let union_nodup (l : 'a StrMap.t) (r : 'a StrMap.t) : 'a StrMap.t =
-  let merger key _ _ = key ^ " exists" |> failwith in
-  StrMap.union merger l r
+let union_nodup (l : 'a StrMap.t) (r : 'a StrMap.t) : 'a StrMap.t myresult =
+  let msg = ref None in
+  let merger key _ y =
+    msg := Some (key ^ " already exists");
+    Some y
+  in
+  let merged = StrMap.union merger l r in
+  match !msg with None -> Ok merged | Some msg -> Error msg
 
 let union ~(weak : 'a StrMap.t) ~(strong : 'a StrMap.t) : 'a StrMap.t =
   let merger _ _ y = Some y in
@@ -56,3 +57,5 @@ let union ~(weak : 'a StrMap.t) ~(strong : 'a StrMap.t) : 'a StrMap.t =
 let show_list (f : 'a -> string) (hd : 'a) (tl : 'a list) : string =
   let init = "(" ^ f hd in
   List.fold_left (fun acc a -> acc ^ ", " ^ f a) init tl ^ ")"
+
+let boldred (value : string) : string = "\x1b[1;31m" ^ value ^ "\x1b[0m"

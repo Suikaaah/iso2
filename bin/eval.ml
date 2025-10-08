@@ -33,7 +33,7 @@ let rec invert (psi : psi) (omega : iso) : iso =
           let vr = vr "x" in
           let vl = Cted { c = x; v = vr } in
           Pairs { anot = invert_iso_type t; pairs = [ (vl, Value vr) ] }
-      | Arrow _ -> failwith "arrow constructor"
+      | Arrow _ -> failwith "unreachable (arrow constructor)"
     end
   | App { omega_1; omega_2 } ->
       App { omega_1 = invert omega_1; omega_2 = invert omega_2 }
@@ -117,7 +117,7 @@ let rec value_of_term (t : term) : value =
   | App { omega = Named c; t : term } ->
       let v = value_of_term t in
       Cted { c; v }
-  | _ -> failwith "unreduced term"
+  | _ -> "unreachable (unreduced term: " ^ show_term t ^ ")" |> failwith
 
 let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
   let rec vv : value * value -> bool = function
@@ -127,12 +127,11 @@ let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
     | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
         c_1 = c_2 && vv (v_1, v_2)
     | Tuple l, Tuple r ->
-        Option.map (List.for_all vv) (combine l r) |> value_or false
+        Option.map (List.for_all vv) (combine l r)
+        |> Option.value ~default:false
     | _ -> false
   in
-  let found = List.find_opt (fun (v', _) -> vv (v', v)) l in
-  if Option.is_none found then print_endline "no matching pair found" else ();
-  found
+  List.find_opt (fun (v', _) -> vv (v', v)) l
 
 let rec unify_value (u : value) (v : value) : (string * value) list =
   match (u, v) with
@@ -143,7 +142,7 @@ let rec unify_value (u : value) (v : value) : (string * value) list =
         let+ combined = combine l r in
         List.map (fun (u, v) -> unify_value u v) combined |> List.flatten
       in
-      value_or [] opt
+      Option.value ~default:[] opt
   | _ -> []
 
 let rec eval (psi : psi) (t : term) : term =
@@ -155,16 +154,20 @@ let rec eval (psi : psi) (t : term) : term =
       let v' = eval u |> value_of_term in
       match omega with
       | Pairs { pairs; _ } ->
-          let opt =
-            let+ v, e = match_pair pairs v' in
-            let unified = unify_value v v' in
-            List.fold_left
-              (fun t (from, into) ->
-                subst ~from ~into:(term_of_value into) ~what:t)
-              (term_of_expr e) unified
-            |> eval
+          let v, e =
+            match match_pair pairs v' with
+            | Some pair -> pair
+            | None ->
+                "no matching pair found: " ^ show_value v' ^ " |> "
+                ^ show_pairs pairs
+                |> failwith
           in
-          value_or t opt
+          let unified = unify_value v v' in
+          List.fold_left
+            (fun t (from, into) ->
+              subst ~from ~into:(term_of_value into) ~what:t)
+            (term_of_expr e) unified
+          |> eval
       | _ -> t
     end
   | Let { p; t_1; t_2 } -> begin
