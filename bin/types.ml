@@ -1,25 +1,22 @@
+open Util
+
 type base_type = Unit | Product of base_type list | Named of string
-[@@deriving show { with_path = false }]
 
 type iso_type =
   | BiArrow of { a : base_type; b : base_type }
   | Arrow of { t_1 : iso_type; t_2 : iso_type }
-[@@deriving show { with_path = false }]
 
 type value =
   | Unit
   | Named of string
   | Cted of { c : string; v : value }
   | Tuple of value list
-[@@deriving show { with_path = false }]
 
 type pat = Named of string | Tuple of pat list
-[@@deriving show { with_path = false }]
 
 type expr =
   | Value of value
   | Let of { p_1 : pat; omega : iso; p_2 : pat; e : expr }
-[@@deriving show { with_path = false }]
 
 and iso =
   | Pairs of { anot : iso_type; pairs : (value * expr) list }
@@ -28,7 +25,6 @@ and iso =
   | Named of string
   | App of { omega_1 : iso; omega_2 : iso }
   | Invert of iso
-[@@deriving show { with_path = false }]
 
 type term =
   | Unit
@@ -37,16 +33,10 @@ type term =
   | App of { omega : iso; t : term }
   | Let of { p : pat; t_1 : term; t_2 : term }
   | LetIso of { phi : string; omega : iso; t : term }
-[@@deriving show { with_path = false }]
 
 type variant = Value of string | Iso of { c : string; a : base_type }
-[@@deriving show { with_path = false }]
-
 type typedef = { t : string; vs : variant list }
-[@@deriving show { with_path = false }]
-
 type program = { ts : typedef list; t : term }
-[@@deriving show { with_path = false }]
 
 let rec term_of_value : value -> term = function
   | Unit -> Unit
@@ -72,24 +62,6 @@ let rec value_of_expr : expr -> value = function
   | Value v -> v
   | Let { e; _ } -> value_of_expr e
 
-let rec p_term : term -> string = function
-  | Unit -> "()"
-  | Named x -> x
-  | Tuple (hd :: tl) ->
-      let init = "(" ^ p_term hd in
-      List.fold_left (fun acc x -> acc ^ ", " ^ p_term x) init tl ^ ")"
-  | App { omega = Named omega; t } -> omega ^ " " ^ p_term t
-  | t -> show_term t
-
-let rec p_value : value -> string = function
-  | Unit -> "()"
-  | Named x -> x
-  | Cted { c : string; v : value } -> c ^ " " ^ p_value v
-  | Tuple (hd :: tl) ->
-      let init = "(" ^ p_value hd in
-      List.fold_left (fun acc x -> acc ^ ", " ^ p_value x) init tl ^ ")"
-  | v -> show_value v
-
 let rec contains (what : string) : pat -> bool = function
   | Named x -> x = what
   | Tuple l -> List.exists (contains what) l
@@ -108,17 +80,55 @@ let rec lambdas_of_params : (string * iso_type) list -> iso -> iso = function
   | (psi, anot) :: tl ->
       fun omega -> Lambda { psi; anot; omega = lambdas_of_params tl omega }
 
-let rec p_base_type : base_type -> string = function
+let rec show_base_type : base_type -> string = function
   | Unit -> "()"
-  | Product (hd :: tl) ->
-      List.fold_left
-        (fun acc a -> acc ^ ", " ^ p_base_type a)
-        ("(" ^ p_base_type hd)
-        tl
-      ^ ")"
+  | Product (hd :: tl) -> show_list show_base_type hd tl
   | Product _ -> "unreachable"
   | Named x -> x
 
-let rec p_iso_type : iso_type -> string = function
-  | BiArrow { a; b } -> "(" ^ p_base_type a ^ " <-> " ^ p_base_type b ^ ")"
-  | Arrow { t_1; t_2 } -> "(" ^ p_iso_type t_1 ^ " -> " ^ p_iso_type t_2 ^ ")"
+let rec show_iso_type : iso_type -> string = function
+  | BiArrow { a; b } ->
+      "(" ^ show_base_type a ^ " <-> " ^ show_base_type b ^ ")"
+  | Arrow { t_1; t_2 } ->
+      "(" ^ show_iso_type t_1 ^ " -> " ^ show_iso_type t_2 ^ ")"
+
+let rec show_value : value -> string = function
+  | Unit -> "()"
+  | Named x -> x
+  | Cted { c; v } -> c ^ " " ^ show_value v
+  | Tuple (hd :: tl) -> show_list show_value hd tl
+  | Tuple _ -> "unreachable"
+
+let rec show_pat : pat -> string = function
+  | Named x -> x
+  | Tuple (hd :: tl) -> show_list show_pat hd tl
+  | Tuple _ -> "unreachable"
+
+let rec show_expr : expr -> string = function
+  | Value v -> show_value v
+  | Let { p_1; omega; p_2; e } ->
+      "let " ^ show_pat p_1 ^ " = " ^ show_iso omega ^ " " ^ show_pat p_2
+      ^ " in " ^ show_expr e
+
+and show_iso : iso -> string = function
+  | Pairs { pairs; _ } ->
+      List.fold_left
+        (fun acc (v, e) -> acc ^ "\n" ^ show_value v ^ " <-> " ^ show_expr e)
+        "{" pairs
+      ^ "\n}"
+  | Fix { phi; omega; _ } -> "fix " ^ phi ^ ". " ^ show_iso omega
+  | Lambda { psi; omega; _ } -> "\\" ^ psi ^ ". " ^ show_iso omega
+  | Named omega -> omega
+  | App { omega_1; omega_2 } -> "(" ^ show_iso omega_1 ^ ") " ^ show_iso omega_2
+  | Invert omega -> "invert " ^ show_iso omega
+
+let rec show_term : term -> string = function
+  | Unit -> "()"
+  | Named x -> x
+  | Tuple (hd :: tl) -> show_list show_term hd tl
+  | Tuple _ -> "unreachable"
+  | App { omega; t } -> "(" ^ show_iso omega ^ ") " ^ show_term t
+  | Let { p; t_1; t_2 } ->
+      "let " ^ show_pat p ^ " = " ^ show_term t_1 ^ " in " ^ show_term t_2
+  | LetIso { phi; omega; t } ->
+      "let iso " ^ phi ^ " = (" ^ show_iso omega ^ ") " ^ show_term t

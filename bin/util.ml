@@ -52,3 +52,7 @@ let union_nodup (l : 'a StrMap.t) (r : 'a StrMap.t) : 'a StrMap.t =
 let union ~(weak : 'a StrMap.t) ~(strong : 'a StrMap.t) : 'a StrMap.t =
   let merger _ _ y = Some y in
   StrMap.union merger weak strong
+
+let show_list (f : 'a -> string) (hd : 'a) (tl : 'a list) : string =
+  let init = "(" ^ f hd in
+  List.fold_left (fun acc a -> acc ^ ", " ^ f a) init tl ^ ")"

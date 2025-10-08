@@ -25,6 +25,6 @@ let () =
         eval t |> show_term |> print_endline;
         print_endline "\nEvaluated (readable):";
         *)
-            eval ctx.psi t |> p_term |> print_endline
+            eval ctx.psi t |> show_term |> print_endline
         | Error e -> print_endline e
       end

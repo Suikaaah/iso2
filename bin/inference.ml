@@ -7,7 +7,7 @@ type context = { psi : psi; delta : delta }
 
 let rec is_orthogonal (u : value) (v : value) : string option =
   let msg =
-    lazy (Some (p_value u ^ " and " ^ p_value v ^ " are not orthogonal"))
+    lazy (Some (show_value u ^ " and " ^ show_value v ^ " are not orthogonal"))
   in
   match (u, v) with
   | Unit, Unit -> Lazy.force msg
@@ -32,7 +32,7 @@ let rec invert_iso_type : iso_type -> iso_type = function
       Arrow { t_1; t_2 }
 
 let rec unify_pat (p : pat) (a : base_type) : delta myresult =
-  let msg = lazy (show_pat p ^ " and " ^ p_base_type a) in
+  let msg = lazy (show_pat p ^ " with type " ^ show_base_type a) in
   match (p, a) with
   | Named x, _ -> Ok (StrMap.singleton x a)
   | Tuple tpl, Product prd ->
@@ -44,11 +44,11 @@ let rec unify_pat (p : pat) (a : base_type) : delta myresult =
         List.map (fun (p, a) -> unify_pat p a) combined |> bind_all
       in
       List.fold_left (fun acc delta -> union_nodup acc delta) StrMap.empty list
-  | _ -> Error ("unable to unify: " ^ Lazy.force msg)
+  | _ -> Error ("unable to unify " ^ Lazy.force msg)
 
 let rec unify_value (ctx : context) (v : value) (a : base_type) : delta myresult
     =
-  let msg = lazy (show_value v ^ " and " ^ p_base_type a) in
+  let msg = lazy (show_value v ^ " with type " ^ show_base_type a) in
   match (v, a) with
   | Unit, Unit -> Ok StrMap.empty
   | Named x, _ when is_variable x -> Ok (StrMap.singleton x a)
@@ -60,8 +60,8 @@ let rec unify_value (ctx : context) (v : value) (a : base_type) : delta myresult
       if a = b then Ok StrMap.empty
       else
         Error
-          (x ^ " is expected to have type " ^ p_base_type a
-         ^ " but it has type " ^ p_base_type b)
+          (x ^ " is expected to have type " ^ show_base_type a
+         ^ " but it has type " ^ show_base_type b)
   | Cted { c; v }, b' -> begin
       let** omega =
         StrMap.find_opt c ctx.psi
@@ -72,12 +72,13 @@ let rec unify_value (ctx : context) (v : value) (a : base_type) : delta myresult
           if b = b' then unify_value ctx v a
           else
             Error
-              (c ^ " is expected to have type _ <-> " ^ p_base_type b'
-             ^ " but it has type _ <-> " ^ p_base_type b)
+              (c ^ " is expected to have type _ <-> " ^ show_base_type b'
+             ^ " but it has type " ^ show_base_type a ^ " <-> "
+             ^ show_base_type b)
       | Arrow _ ->
           Error
-            (c ^ " is expected to have type _ <-> _ but it has type "
-           ^ p_iso_type omega)
+            (c ^ " is expected to have type _ <-> " ^ show_base_type b'
+           ^ " but it has type " ^ show_iso_type omega)
     end
   | Tuple t, Product p ->
       let** combined =
@@ -88,7 +89,7 @@ let rec unify_value (ctx : context) (v : value) (a : base_type) : delta myresult
         List.map (fun (v, a) -> unify_value ctx v a) combined |> bind_all
       in
       List.fold_left (fun acc delta -> union_nodup acc delta) StrMap.empty list
-  | _ -> Error ("unable to unify: " ^ Lazy.force msg)
+  | _ -> Error ("unable to unify " ^ Lazy.force msg)
 
 let invert_pairs (pairs : (value * expr) list) : (value * expr) list =
   let rec invert_expr (e : expr) (acc : expr) =
@@ -105,11 +106,15 @@ let rec infer_base_in_expr (ctx : context) (e : expr) : base_type myresult =
   match e with
   | Value v -> infer_base ctx (term_of_value v)
   | Let { p_1; omega; e; _ } ->
-      let** omega = infer_iso ctx omega in
+      let** omega' = infer_iso ctx omega in
       let** b =
-        match omega with
+        match omega' with
         | BiArrow { b; _ } -> Ok b
-        | _ -> Error (p_iso_type omega ^ " is expected to be _ <-> _")
+        | Arrow _ ->
+            Error
+              (show_iso omega
+             ^ " is expected to have type _ <-> _ but it has type "
+             ^ show_iso_type omega')
       in
       let** unified = unify_pat p_1 b in
       let extended = union ~weak:ctx.delta ~strong:unified in
@@ -132,9 +137,13 @@ and infer_base (ctx : context) (t : term) : base_type myresult =
           if a = t then Ok b
           else
             Error
-              (show_iso omega ^ " is expected to have type " ^ p_base_type t
-             ^ " <-> _ but it has type " ^ p_base_type a ^ " <-> _")
-      | _ -> Error (p_iso_type omega' ^ " is expected to be _ <-> _")
+              (show_iso omega ^ " is expected to have type " ^ show_base_type t
+             ^ " <-> _ but it has type " ^ show_base_type a ^ " <-> "
+             ^ show_base_type b)
+      | Arrow _ ->
+          Error
+            (show_iso omega ^ " is expected to have type " ^ show_base_type t
+           ^ " <-> _ but it has type " ^ show_iso_type omega')
     end
   | Let { p; t_1; t_2 } ->
       let** a = infer_base ctx t_1 in
@@ -161,8 +170,8 @@ and infer_iso (ctx : context) (omega : iso) : iso_type myresult =
               if b' = b then None
               else
                 Some
-                  (show_expr e ^ " is expected to have type " ^ p_base_type b
-                 ^ " but it has type " ^ p_base_type b')
+                  (show_expr e ^ " is expected to have type " ^ show_base_type b
+                 ^ " but it has type " ^ show_base_type b')
           | Error e -> Some e
         in
         match List.find_map well_typed pairs with
@@ -188,8 +197,8 @@ and infer_iso (ctx : context) (omega : iso) : iso_type myresult =
       if omega = anot then Ok anot
       else
         Error
-          (show_iso omega' ^ " is expected to have type " ^ p_iso_type anot
-         ^ " but it has type " ^ p_iso_type omega)
+          (show_iso omega' ^ " is expected to have type " ^ show_iso_type anot
+         ^ " but it has type " ^ show_iso_type omega)
   | Lambda { psi; anot; omega } ->
       let extended = extend ctx.psi [ (psi, anot) ] in
       let++ t_2 = infer_iso { psi = extended; delta = ctx.delta } omega in
@@ -206,13 +215,13 @@ and infer_iso (ctx : context) (omega : iso) : iso_type myresult =
           else
             Error
               (show_iso omega_1 ^ " is expected to have type "
-             ^ p_iso_type omega_2' ^ " -> _ but it has type " ^ p_iso_type t_1
-             ^ " -> _")
-      | _ ->
+             ^ show_iso_type omega_2' ^ " -> _ but it has type "
+             ^ show_iso_type t_1 ^ " -> " ^ show_iso_type t_2)
+      | BiArrow _ ->
           Error
             (show_iso omega_1
            ^ " is expected to have type _ -> _ but it has type "
-           ^ p_iso_type omega_1')
+           ^ show_iso_type omega_1')
     end
   | Invert omega -> Result.map invert_iso_type (infer_iso ctx omega)
 

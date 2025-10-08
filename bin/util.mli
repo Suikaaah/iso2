@@ -14,3 +14,4 @@ val is_variable : string -> bool
 val for_all_pairs : ('a -> 'a -> 'b option) -> 'a list -> 'b option
 val union_nodup : 'a StrMap.t -> 'a StrMap.t -> 'a StrMap.t
 val union : weak:'a StrMap.t -> strong:'a StrMap.t -> 'a StrMap.t
+val show_list : ('a -> string) -> 'a -> 'a list -> string
