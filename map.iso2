@@ -1,7 +1,7 @@
 type a = 0 | 1 | 2
 type b = A | B | C
-type al = ANil | ACons (a, al)
-type bl = BNil | BCons (b, bl)
+type al = ANil | ACons of (a, al)
+type bl = BNil | BCons of (b, bl)
 
 let rec map (f : a <-> b) : al <-> bl =
   | ACons (h', t') <->

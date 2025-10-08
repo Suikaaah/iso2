@@ -28,5 +28,12 @@ rule token = parse
   | "type" { TYPE }
   | "invert" { INVERT }
   | "rec" { REC }
-  | string { NAME (lexeme lexbuf) }
+  | "of" { OF }
+  | string
+    {
+      let x = lexeme lexbuf in
+      if Util.is_variable x
+      then VAR x
+      else CTOR x
+    }
 

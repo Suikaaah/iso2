@@ -1,5 +1,5 @@
-type nat = 0 | S nat
-type opt = None | Some (nat, nat)
+type nat = 0 | S of nat
+type opt = None | Some of (nat, nat)
 
 let iso aux : (nat, nat) <-> opt =
   | (S i, j) <-> Some (i, S j)

@@ -1,4 +1,4 @@
-type nat = 0 | S nat
+type nat = 0 | S of nat
 
 (* add (x, y) = (x + y, y) *)
 let rec add : (nat, nat) <-> (nat, nat) =

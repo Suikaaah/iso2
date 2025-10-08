@@ -1,4 +1,23 @@
-type t = A | B | C
-type u = X (t, t, t) | Y t
+type a = 0 | 1 | 2
+type list = Nil | Cons of (a, list)
 
-(invert invert invert Y) Y B
+let iso id : a <-> a =
+  | x <-> x
+in
+
+let iso dup : a <-> (a, a) =
+  | x <-> let y = id x in (x, y)
+in
+
+let rec rev : (list, list) <-> (list, list) =
+  | (Nil, y)         <-> (Nil, y)
+  | (Cons (h, t), y) <->
+      let (h_1, h_2) = dup h in
+      let c = Cons (h_2, y) in
+      let (t_1, t_2) = rev (t, c) in
+      (Cons (h_1, t_1), t_2)
+in
+
+let l = Cons (2, Cons (0, Cons (1, Cons (0, Nil)))) in
+
+rev (l, Nil)

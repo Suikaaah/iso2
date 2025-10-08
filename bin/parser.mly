@@ -21,7 +21,9 @@ open Types
 %token TYPE
 %token INVERT
 %token REC
-%token <string> NAME
+%token OF
+%token <string> VAR
+%token <string> CTOR
 
 %start <program> program
 %type <base_type> base_type
@@ -46,16 +48,16 @@ program:
   | ts = typedef*; t = term; EOF; { { ts; t } }
 
 typedef:
-  | TYPE; t = NAME; EQUAL; PIPE?; vs = separated_nonempty_list(PIPE, variant); { { t; vs } }
+  | TYPE; t = VAR; EQUAL; PIPE?; vs = separated_nonempty_list(PIPE, variant); { { t; vs } }
 
 variant:
-  | c = NAME; a = base_type; { Iso { c; a } }
-  | c = NAME; { Value c }
+  | c = CTOR; OF; a = base_type; { Iso { c; a } }
+  | c = CTOR; { Value c }
 
 base_type:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; ts = wtf(COMMA, base_type) RPAREN; { Product ts }
-  | x = NAME; { Named x }
+  | x = VAR; { Named x }
 
 iso_type:
   | LPAREN; t = iso_type; RPAREN; { t }
@@ -65,11 +67,12 @@ iso_type:
 value:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; vs = wtf(COMMA, value); RPAREN; { Tuple vs }
-  | c = NAME; v = value; { Cted { c; v } }
-  | x = NAME; { Named x }
+  | c = CTOR; v = value; { Cted { c ; v } }
+  | x = VAR; { Named x }
+  | x = CTOR; { Named x }
 
 pat:
-  | x = NAME; { Named x }
+  | x = VAR; { Named x }
   | LPAREN; ps = wtf(COMMA, pat); RPAREN; { Tuple ps }
 
 expr:
@@ -85,41 +88,43 @@ iso:
   | ISO; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed);
     { Pairs { anot; pairs } }
 
-  | REC; phi = NAME; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed);
+  | REC; phi = VAR; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed);
     { Fix { phi; anot; omega = Pairs { anot; pairs } } }
 
-  | FIX; phi = NAME; COLON; anot = iso_type; DOT; omega = iso; { Fix { phi; anot; omega } }
-  | BACKSLASH; psi = NAME; COLON; anot = iso_type; DOT; omega = iso; { Lambda { psi; anot; omega } }
-  | x = NAME; { Named x }
+  | FIX; phi = VAR; COLON; anot = iso_type; DOT; omega = iso; { Fix { phi; anot; omega } }
+  | BACKSLASH; psi = VAR; COLON; anot = iso_type; DOT; omega = iso; { Lambda { psi; anot; omega } }
+  | x = VAR; { Named x }
+  | x = CTOR; { Named x }
   | omega_1 = iso; omega_2 = iso; { App { omega_1; omega_2 } }
   | INVERT; omega = iso; { Invert omega }
 
 param:
-  | LPAREN; phi = NAME; COLON; t = iso_type; RPAREN; { (phi, t) }
+  | LPAREN; phi = VAR; COLON; t = iso_type; RPAREN; { (phi, t) }
 
 term:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; ts = wtf(COMMA, term); RPAREN; { Tuple ts }
-  | x = NAME; { Named x }
+  | x = VAR; { Named x }
+  | x = CTOR; { Named x }
   | omega = iso; t = term; { App { omega; t } }
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
-  | LET; ISO; phi = NAME; params = param*; EQUAL; omega = iso; IN; t = term;
+  | LET; ISO; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
     { LetIso { phi; omega = lambdas_of_params params omega; t } }
 
-  | LET; REC; phi = NAME; params = param*; COLON; anot = iso_type; EQUAL; omega = iso; IN; t = term;
+  | LET; REC; phi = VAR; params = param*; COLON; anot = iso_type; EQUAL; omega = iso; IN; t = term;
     {
       let omega = Fix { phi; anot; omega } in
       LetIso { phi; omega = lambdas_of_params params omega; t }
     }
 
-  | LET; ISO; phi = NAME; params = param*; COLON; anot = iso_type; EQUAL;
+  | LET; ISO; phi = VAR; params = param*; COLON; anot = iso_type; EQUAL;
     PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); IN; t = term
     {
       let pairs = Pairs { anot; pairs } in
       LetIso { phi; omega = lambdas_of_params params pairs; t }
     }
 
-  | LET; REC; phi = NAME; params = param*; COLON; anot = iso_type; EQUAL;
+  | LET; REC; phi = VAR; params = param*; COLON; anot = iso_type; EQUAL;
     PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); IN; t = term
     {
       let pairs = Fix { phi; anot; omega = Pairs { anot; pairs } } in
