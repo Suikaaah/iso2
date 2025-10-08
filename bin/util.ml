@@ -1,16 +1,18 @@
 module StrMap = Map.Make (String)
 
-type 'a myresult = Ok of 'a | Err of string
+type 'a myresult = ('a, string) Result.t
 
 let ( let* ) : 'a option -> ('a -> 'b option) -> 'b option = Option.bind
-let ( let+ ) (x : 'a option) (f : 'a -> 'b) = Option.map f x
+let ( let+ ) (x : 'a option) (f : 'a -> 'b) : 'b option = Option.map f x
+let ( let** ) : 'a myresult -> ('a -> 'b myresult) -> 'b myresult = Result.bind
+let ( let++ ) (x : 'a myresult) (f : 'a -> 'b) : 'b myresult = Result.map f x
 
-let rec bind_all : 'a option list -> 'a list option = function
-  | None :: _ -> None
-  | Some x :: tl ->
-      let+ tl = bind_all tl in
+let rec bind_all : 'a myresult list -> 'a list myresult = function
+  | Error e :: _ -> Error e
+  | Ok x :: tl ->
+      let++ tl = bind_all tl in
       x :: tl
-  | [] -> Some []
+  | [] -> Ok []
 
 let rec combine (l : 'a list) (r : 'b list) : ('a * 'b) list option =
   match (l, r) with
@@ -34,9 +36,14 @@ let is_variable (value : string) : bool =
   let first = String.get value 0 |> Char.code in
   Char.code 'a' <= first && first <= Char.code 'z'
 
-let rec for_all_pairs (f : 'a -> 'a -> bool) : 'a list -> bool = function
-  | [] -> true
-  | hd :: tl -> List.for_all (f hd) tl && for_all_pairs f tl
+let rec for_all_pairs (f : 'a -> 'a -> 'b option) : 'a list -> 'b option =
+  function
+  | [] -> None
+  | hd :: tl -> begin
+      match List.find_map (f hd) tl with
+      | Some x -> Some x
+      | None -> for_all_pairs f tl
+    end
 
 let union_nodup (l : 'a StrMap.t) (r : 'a StrMap.t) : 'a StrMap.t =
   let merger key _ _ = key ^ " exists" |> failwith in

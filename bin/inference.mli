@@ -7,10 +7,10 @@ type context = { psi : psi; delta : delta }
 
 val is_orthogonal : value -> value -> string option
 val invert_iso_type : iso_type -> iso_type
-val unify_pat : pat -> base_type -> delta option
-val unify_value : context -> value -> base_type -> delta option
+val unify_pat : pat -> base_type -> delta myresult
+val unify_value : context -> value -> base_type -> delta myresult
 val invert_pairs : (value * expr) list -> (value * expr) list
-val infer_base_in_expr : context -> expr -> base_type option
-val infer_base : context -> term -> base_type option
-val infer_iso : context -> iso -> iso_type option
+val infer_base_in_expr : context -> expr -> base_type myresult
+val infer_base : context -> term -> base_type myresult
+val infer_iso : context -> iso -> iso_type myresult
 val build_ctx : typedef list -> context

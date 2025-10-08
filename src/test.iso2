@@ -10,12 +10,11 @@ let iso dup : a <-> (a, a) =
 in
 
 let rec rev : (list, list) <-> (list, list) =
-  | (Nil, y)         <-> (Nil, y)
-  | (Cons (h, t), y) <->
-      let (h_1, h_2) = dup h in
-      let c = Cons (h_2, y) in
-      let (t_1, t_2) = rev (t, c) in
-      (Cons (h_1, t_1), t_2)
+  | (Nil, l)         <-> (Nil, l)
+  | (Cons (h, t), l) <->
+      let c = Cons (h, l) in
+      let l = rev (t, c) in
+      l
 in
 
 let l = Cons (2, Cons (0, Cons (1, Cons (0, Nil)))) in

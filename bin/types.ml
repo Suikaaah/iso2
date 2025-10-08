@@ -107,3 +107,18 @@ let rec lambdas_of_params : (string * iso_type) list -> iso -> iso = function
   | [] -> fun omega -> omega
   | (psi, anot) :: tl ->
       fun omega -> Lambda { psi; anot; omega = lambdas_of_params tl omega }
+
+let rec p_base_type : base_type -> string = function
+  | Unit -> "()"
+  | Product (hd :: tl) ->
+      List.fold_left
+        (fun acc a -> acc ^ ", " ^ p_base_type a)
+        ("(" ^ p_base_type hd)
+        tl
+      ^ ")"
+  | Product _ -> "unreachable"
+  | Named x -> x
+
+let rec p_iso_type : iso_type -> string = function
+  | BiArrow { a; b } -> "(" ^ p_base_type a ^ " <-> " ^ p_base_type b ^ ")"
+  | Arrow { t_1; t_2 } -> "(" ^ p_iso_type t_1 ^ " -> " ^ p_iso_type t_2 ^ ")"

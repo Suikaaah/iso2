@@ -1,6 +1,7 @@
 (ocamllex lexer)
 
 (menhir
+  (flags --exn-carries-state)
   (modules parser))
 
 (executable
