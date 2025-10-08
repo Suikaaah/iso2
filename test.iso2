@@ -1,0 +1,4 @@
+type t = A | B | C
+type u = X (t, t, t) | Y t
+
+(invert invert invert Y) Y B

@@ -1,8 +1,4 @@
-type base_type =
-  | Unit
-  | Sum of base_type list
-  | Product of base_type list
-  | Named of string
+type base_type = Unit | Product of base_type list | Named of string
 [@@deriving show { with_path = false }]
 
 type iso_type =
@@ -83,7 +79,7 @@ let rec p_term : term -> string = function
       let init = "(" ^ p_term hd in
       List.fold_left (fun acc x -> acc ^ ", " ^ p_term x) init tl ^ ")"
   | App { omega = Named omega; t } -> omega ^ " " ^ p_term t
-  | _ -> "<bruh>"
+  | t -> show_term t
 
 let rec p_value : value -> string = function
   | Unit -> "()"
@@ -92,7 +88,7 @@ let rec p_value : value -> string = function
   | Tuple (hd :: tl) ->
       let init = "(" ^ p_value hd in
       List.fold_left (fun acc x -> acc ^ ", " ^ p_value x) init tl ^ ")"
-  | _ -> "<bruh>"
+  | v -> show_value v
 
 let rec contains (what : string) : pat -> bool = function
   | Named x -> x = what

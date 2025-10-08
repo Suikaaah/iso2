@@ -1,8 +1,4 @@
-type base_type =
-  | Unit
-  | Sum of base_type list
-  | Product of base_type list
-  | Named of string
+type base_type = Unit | Product of base_type list | Named of string
 [@@deriving show]
 
 type iso_type =

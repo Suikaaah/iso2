@@ -1,7 +1,9 @@
 open Types
 open Util
+open Inference
 
-let rec invert (omega : iso) : iso =
+let rec invert (psi : psi) (omega : iso) : iso =
+  let invert = invert psi in
   match omega with
   | Pairs { anot; pairs } ->
       let rec invert_expr (e : expr) (acc : expr) =
@@ -12,17 +14,27 @@ let rec invert (omega : iso) : iso =
               (Let { p_1 = p_2; omega = invert omega; p_2 = p_1; e = acc })
       in
       let invert_pair (v, e) = invert_expr e (Value v) in
-      Pairs
-        {
-          anot = Inference.invert_iso_type anot;
-          pairs = List.map invert_pair pairs;
-        }
+      Pairs { anot = invert_iso_type anot; pairs = List.map invert_pair pairs }
   | Fix { phi; anot; omega } ->
-      Fix { phi; anot = Inference.invert_iso_type anot; omega = invert omega }
+      Fix { phi; anot = invert_iso_type anot; omega = invert omega }
   | Lambda { psi; anot; omega } ->
-      Lambda
-        { psi; anot = Inference.invert_iso_type anot; omega = invert omega }
-  | Named _ -> omega
+      Lambda { psi; anot = invert_iso_type anot; omega = invert omega }
+  | Named x (* fix i guess *) when is_variable x -> omega
+  | Named x (* constructor *) -> begin
+      match StrMap.find x psi with
+      | BiArrow { a; _ } as t ->
+          let vr x : value =
+            match a with
+            | Product p ->
+                let f i _ : value = Named (x ^ string_of_int i) in
+                Tuple (List.mapi f p)
+            | _ -> Named x
+          in
+          let vr = vr "x" in
+          let vl = Cted { c = x; v = vr } in
+          Pairs { anot = invert_iso_type t; pairs = [ (vl, Value vr) ] }
+      | Arrow _ -> failwith "arrow constructor"
+    end
   | App { omega_1; omega_2 } ->
       App { omega_1 = invert omega_1; omega_2 = invert omega_2 }
   | Invert omega -> omega
@@ -134,11 +146,12 @@ let rec unify_value (u : value) (v : value) : (string * value) list =
       value_or [] opt
   | _ -> []
 
-let rec eval (t : term) : term =
+let rec eval (psi : psi) (t : term) : term =
+  let eval = eval psi in
   match t with
   | Tuple l -> Tuple (List.map eval l)
   | App { omega; t = u } -> begin
-      let omega = eval_iso omega in
+      let omega = eval_iso psi omega in
       let v' = eval u |> value_of_term in
       match omega with
       | Pairs { pairs; _ } ->
@@ -163,11 +176,12 @@ let rec eval (t : term) : term =
       |> eval
     end
   | LetIso { phi; omega; t } ->
-      let omega = eval_iso omega in
+      let omega = eval_iso psi omega in
       subst_iso_in_term ~from:phi ~into:omega ~what:t |> eval
   | _ -> t
 
-and eval_iso (omega : iso) : iso =
+and eval_iso (psi : psi) (omega : iso) : iso =
+  let eval_iso = eval_iso psi in
   match omega with
   | Fix { phi; omega = omega'; _ } ->
       subst_iso ~from:phi ~into:omega ~what:omega' |> eval_iso
@@ -177,5 +191,5 @@ and eval_iso (omega : iso) : iso =
           subst_iso ~from:psi ~into:omega_2 ~what:omega |> eval_iso
       | _ -> omega
     end
-  | Invert omega -> invert omega |> eval_iso
+  | Invert omega -> eval_iso omega |> invert psi |> eval_iso
   | _ -> omega

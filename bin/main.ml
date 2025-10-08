@@ -22,6 +22,6 @@ let () =
         eval t |> show_term |> print_endline;
         print_endline "\nEvaluated (readable):";
         *)
-        eval t |> p_term |> print_endline
+        eval ctx.psi t |> p_term |> print_endline
     | None -> "unable to infer type" |> print_endline
   end
