@@ -4,17 +4,17 @@ type al = ANil | ACons of (a, al)
 type bl = BNil | BCons of (b, bl)
 
 let rec map (f : a <-> b) : al <-> bl =
-  | ACons (h', t') <->
-      let h = f h' in
-      let t = map t' in
-      BCons (h, t)
-  | ANil <-> BNil
+| ACons (h', t') <->
+    let h = f h' in
+    let t = map t' in
+    BCons (h, t)
+| ANil <-> BNil
 in
 
 let iso f : a <-> b =
-  | 0 <-> A
-  | 1 <-> B
-  | 2 <-> C
+| 0 <-> A
+| 1 <-> B
+| 2 <-> C
 in
 
 let result = (map f) ACons (1, ACons (0, ACons (2, ANil))) in

@@ -57,7 +57,8 @@ let rec unify_value (ctx : context) (v : value) (a : base_type) : delta myresult
   | Named x, _ ->
       let** b =
         StrMap.find_opt x ctx.delta
-        |> Option.to_result ~none:(x ^ " was not found in current context")
+        |> Option.to_result
+             ~none:(x ^ " was not found in the context of base_type")
       in
       if a = b then Ok StrMap.empty
       else
@@ -67,7 +68,8 @@ let rec unify_value (ctx : context) (v : value) (a : base_type) : delta myresult
   | Cted { c; v }, b' -> begin
       let** omega =
         StrMap.find_opt c ctx.psi
-        |> Option.to_result ~none:(c ^ " was not found in current context")
+        |> Option.to_result
+             ~none:(c ^ " was not found in the context of iso_type")
       in
       match omega with
       | BiArrow { a; b } ->
@@ -129,7 +131,8 @@ and infer_base (ctx : context) (t : term) : base_type myresult =
   | Unit -> Ok Unit
   | Named x ->
       StrMap.find_opt x ctx.delta
-      |> Option.to_result ~none:(x ^ " was not found in current context")
+      |> Option.to_result
+           ~none:(x ^ " was not found in the context of base_type")
   | Tuple l ->
       let++ l = List.map (infer_base ctx) l |> bind_all in
       Product l
@@ -161,7 +164,7 @@ and infer_base (ctx : context) (t : term) : base_type myresult =
 
 and infer_iso (ctx : context) (omega : iso) : iso_type myresult =
   match omega with
-  | Pairs { anot = BiArrow { a; b }; pairs } ->
+  | Pairs { annot = BiArrow { a; b }; pairs } ->
       let infer_pairs a b pairs =
         let well_typed (v, e) =
           let infered =
@@ -195,21 +198,21 @@ and infer_iso (ctx : context) (omega : iso) : iso_type myresult =
       let** _ = infer_pairs b a (invert_pairs pairs) in
       infer_pairs a b pairs
   | Pairs _ -> Error "unreachable (Pairs have non-biarrow type)"
-  | Fix { phi; anot; omega = omega' } ->
-      let extended = extend ctx.psi [ (phi, anot) ] in
+  | Fix { phi; annot; omega = omega' } ->
+      let extended = extend ctx.psi [ (phi, annot) ] in
       let** omega = infer_iso { psi = extended; delta = ctx.delta } omega' in
-      if omega = anot then Ok anot
+      if omega = annot then Ok annot
       else
         Error
-          (show_iso omega' ^ " is expected to have type " ^ show_iso_type anot
+          (show_iso omega' ^ " is expected to have type " ^ show_iso_type annot
          ^ " but it has type " ^ show_iso_type omega)
-  | Lambda { psi; anot; omega } ->
-      let extended = extend ctx.psi [ (psi, anot) ] in
+  | Lambda { psi; annot; omega } ->
+      let extended = extend ctx.psi [ (psi, annot) ] in
       let++ t_2 = infer_iso { psi = extended; delta = ctx.delta } omega in
-      Arrow { t_1 = anot; t_2 }
+      Arrow { t_1 = annot; t_2 }
   | Named x ->
       StrMap.find_opt x ctx.psi
-      |> Option.to_result ~none:(x ^ " was not found in current context")
+      |> Option.to_result ~none:(x ^ " was not found in the context of iso_type")
   | App { omega_1; omega_2 } -> begin
       let** omega_1' = infer_iso ctx omega_1 in
       let** omega_2' = infer_iso ctx omega_2 in

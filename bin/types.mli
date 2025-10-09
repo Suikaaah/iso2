@@ -17,9 +17,9 @@ type expr =
   | Let of { p_1 : pat; omega : iso; p_2 : pat; e : expr }
 
 and iso =
-  | Pairs of { anot : iso_type; pairs : (value * expr) list }
-  | Fix of { phi : string; anot : iso_type; omega : iso }
-  | Lambda of { psi : string; anot : iso_type; omega : iso }
+  | Pairs of { annot : iso_type; pairs : (value * expr) list }
+  | Fix of { phi : string; annot : iso_type; omega : iso }
+  | Lambda of { psi : string; annot : iso_type; omega : iso }
   | Named of string
   | App of { omega_1 : iso; omega_2 : iso }
   | Invert of iso

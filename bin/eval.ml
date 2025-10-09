@@ -2,10 +2,12 @@ open Types
 open Util
 open Inference
 
+(* keeping annotation correct just in case *)
+
 let rec invert (psi : psi) (omega : iso) : iso =
   let invert = invert psi in
   match omega with
-  | Pairs { anot; pairs } ->
+  | Pairs { annot; pairs } ->
       let rec invert_expr (e : expr) (acc : expr) =
         match e with
         | Value v -> (v, acc)
@@ -14,25 +16,19 @@ let rec invert (psi : psi) (omega : iso) : iso =
               (Let { p_1 = p_2; omega = invert omega; p_2 = p_1; e = acc })
       in
       let invert_pair (v, e) = invert_expr e (Value v) in
-      Pairs { anot = invert_iso_type anot; pairs = List.map invert_pair pairs }
-  | Fix { phi; anot; omega } ->
-      Fix { phi; anot = invert_iso_type anot; omega = invert omega }
-  | Lambda { psi; anot; omega } ->
-      Lambda { psi; anot = invert_iso_type anot; omega = invert omega }
+      Pairs
+        { annot = invert_iso_type annot; pairs = List.map invert_pair pairs }
+  | Fix { phi; annot; omega } ->
+      Fix { phi; annot = invert_iso_type annot; omega = invert omega }
+  | Lambda { psi; annot; omega } ->
+      Lambda { psi; annot = invert_iso_type annot; omega = invert omega }
   | Named x (* fix i guess *) when is_variable x -> omega
   | Named x (* constructor *) -> begin
       match StrMap.find x psi with
-      | BiArrow { a; _ } as t ->
-          let vr x : value =
-            match a with
-            | Product p ->
-                let f i _ : value = Named (x ^ string_of_int i) in
-                Tuple (List.mapi f p)
-            | _ -> Named x
-          in
-          let vr = vr "x" in
+      | BiArrow _ as t ->
+          let vr : value = Named "x" in
           let vl = Cted { c = x; v = vr } in
-          Pairs { anot = invert_iso_type t; pairs = [ (vl, Value vr) ] }
+          Pairs { annot = invert_iso_type t; pairs = [ (vl, Value vr) ] }
       | Arrow _ -> failwith "unreachable (arrow constructor)"
     end
   | App { omega_1; omega_2 } ->
@@ -63,17 +59,17 @@ let rec subst ~(from : string) ~(into : term) ~(what : term) : term =
 let rec subst_iso ~(from : string) ~(into : iso) ~(what : iso) : iso =
   let subst_iso what = subst_iso ~from ~into ~what in
   match what with
-  | Pairs { anot; pairs } when not (contains_pairs from pairs) ->
+  | Pairs { annot; pairs } when not (contains_pairs from pairs) ->
       let pairs =
         List.map
           (fun (v, e) -> (v, subst_iso_in_expr ~from ~into ~what:e))
           pairs
       in
-      Pairs { anot; pairs }
-  | Fix { phi; anot; omega } when phi <> from ->
-      Fix { phi; anot; omega = subst_iso omega }
-  | Lambda { psi; anot; omega } when psi <> from ->
-      Lambda { psi; anot; omega = subst_iso omega }
+      Pairs { annot; pairs }
+  | Fix { phi; annot; omega } when phi <> from ->
+      Fix { phi; annot; omega = subst_iso omega }
+  | Lambda { psi; annot; omega } when psi <> from ->
+      Lambda { psi; annot; omega = subst_iso omega }
   | Named x when x = from -> into
   | App { omega_1; omega_2 } ->
       App { omega_1 = subst_iso omega_1; omega_2 = subst_iso omega_2 }

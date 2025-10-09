@@ -85,14 +85,14 @@ biarrowed:
 
 iso:
   | LPAREN; omega = iso; RPAREN; { omega }
-  | ISO; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed);
-    { Pairs { anot; pairs } }
+  | ISO; COLON; annot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed);
+    { Pairs { annot; pairs } }
 
-  | REC; phi = VAR; COLON; anot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed);
-    { Fix { phi; anot; omega = Pairs { anot; pairs } } }
+  | REC; phi = VAR; COLON; annot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed);
+    { Fix { phi; annot; omega = Pairs { annot; pairs } } }
 
-  | FIX; phi = VAR; COLON; anot = iso_type; DOT; omega = iso; { Fix { phi; anot; omega } }
-  | BACKSLASH; psi = VAR; COLON; anot = iso_type; DOT; omega = iso; { Lambda { psi; anot; omega } }
+  | FIX; phi = VAR; COLON; annot = iso_type; DOT; omega = iso; { Fix { phi; annot; omega } }
+  | BACKSLASH; psi = VAR; COLON; annot = iso_type; DOT; omega = iso; { Lambda { psi; annot; omega } }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
   | omega_1 = iso; omega_2 = iso; { App { omega_1; omega_2 } }
@@ -111,22 +111,22 @@ term:
   | LET; ISO; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
     { LetIso { phi; omega = lambdas_of_params params omega; t } }
 
-  | LET; REC; phi = VAR; params = param*; COLON; anot = iso_type; EQUAL; omega = iso; IN; t = term;
+  | LET; REC; phi = VAR; params = param*; COLON; annot = iso_type; EQUAL; omega = iso; IN; t = term;
     {
-      let omega = Fix { phi; anot; omega } in
+      let omega = Fix { phi; annot; omega } in
       LetIso { phi; omega = lambdas_of_params params omega; t }
     }
 
-  | LET; ISO; phi = VAR; params = param*; COLON; anot = iso_type; EQUAL;
+  | LET; ISO; phi = VAR; params = param*; COLON; annot = iso_type; EQUAL;
     PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); IN; t = term
     {
-      let pairs = Pairs { anot; pairs } in
+      let pairs = Pairs { annot; pairs } in
       LetIso { phi; omega = lambdas_of_params params pairs; t }
     }
 
-  | LET; REC; phi = VAR; params = param*; COLON; anot = iso_type; EQUAL;
+  | LET; REC; phi = VAR; params = param*; COLON; annot = iso_type; EQUAL;
     PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed); IN; t = term
     {
-      let pairs = Fix { phi; anot; omega = Pairs { anot; pairs } } in
+      let pairs = Fix { phi; annot; omega = Pairs { annot; pairs } } in
       LetIso { phi; omega = lambdas_of_params params pairs; t }
     }

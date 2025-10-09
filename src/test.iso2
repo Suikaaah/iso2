@@ -1,22 +1,20 @@
-type a = 0 | 1 | 2
-type list = Nil | Cons of (a, list)
+type t = 0 | 1 | 2
+type list = Nil | Cons of (t, list)
+type any = T of t | List of list
 
-let iso id : a <-> a =
-  | x <-> x
-in
-
-let iso dup : a <-> (a, a) =
-  | x <-> let y = id x in (x, y)
-in
+let iso id : t <-> t = x <-> x in
 
 let rec rev : (list, list) <-> (list, list) =
-  | (Nil, l)         <-> (Nil, l)
-  | (Cons (h, t), l) <->
-      let c = Cons (h, l) in
-      let l = rev (t, c) in
-      l
+| (Nil, y) <-> (Nil, y)
+| (Cons (h, t), y) <->
+    let (h_1, h_2) = h |>
+      iso : t <-> (t, t).
+      | x <-> let y = id x in (x, y)
+    in
+    let y = Cons (h_2, y) in
+    let (t_1, t_2) = rev (t, y) in
+    (Cons (h_1, t_1), t_2)
 in
 
-let l = Cons (2, Cons (0, Cons (1, Cons (0, Nil)))) in
-
+let l = Cons (2, Cons (1, Cons (0, Nil))) in
 rev (l, Nil)
