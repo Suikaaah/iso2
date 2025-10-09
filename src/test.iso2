@@ -1,20 +1,4 @@
-type t = 0 | 1 | 2
-type list = Nil | Cons of (t, list)
-type any = T of t | List of list
+type nat = 0 | S of nat
+type opt = None | Some of (nat, nat)
 
-let iso id : t <-> t = x <-> x in
-
-let rec rev : (list, list) <-> (list, list) =
-| (Nil, y) <-> (Nil, y)
-| (Cons (h, t), y) <->
-    let (h_1, h_2) = h |>
-      iso : t <-> (t, t).
-      | x <-> let y = id x in (x, y)
-    in
-    let y = Cons (h_2, y) in
-    let (t_1, t_2) = rev (t, y) in
-    (Cons (h_1, t_1), t_2)
-in
-
-let l = Cons (2, Cons (1, Cons (0, Nil))) in
-rev (l, Nil)
+(invert invert Some) (0, S S 0)

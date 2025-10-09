@@ -107,12 +107,12 @@ let rec show_pat : pat -> string = function
 let rec show_expr : expr -> string = function
   | Value v -> show_value v
   | Let { p_1; omega; p_2; e } ->
-      "let " ^ show_pat p_1 ^ " = " ^ show_iso omega ^ " " ^ show_pat p_2
+      "let " ^ show_pat p_1 ^ " = (" ^ show_iso omega ^ ") " ^ show_pat p_2
       ^ " in " ^ show_expr e
 
 and show_pairs (pairs : (value * expr) list) : string =
   List.fold_left
-    (fun acc (v, e) -> acc ^ "\n" ^ show_value v ^ " <-> " ^ show_expr e)
+    (fun acc (v, e) -> acc ^ "\n  " ^ show_value v ^ " <-> " ^ show_expr e)
     "{" pairs
   ^ "\n}"
 
@@ -129,7 +129,7 @@ let rec show_term : term -> string = function
   | Named x -> x
   | Tuple (hd :: tl) -> show_list show_term hd tl
   | Tuple _ -> "unreachable"
-  | App { omega; t } -> show_iso omega ^ " " ^ show_term t
+  | App { omega; t } -> "(" ^ show_iso omega ^ ") " ^ show_term t
   | Let { p; t_1; t_2 } ->
       "let " ^ show_pat p ^ " = " ^ show_term t_1 ^ " in " ^ show_term t_2
   | LetIso { phi; omega; t } ->

@@ -195,7 +195,12 @@ and infer_iso (ctx : context) (omega : iso) : iso_type myresult =
             | Some e, _ | _, Some e -> Error e
             | None, None -> Ok (BiArrow { a; b }))
       in
-      let** _ = infer_pairs b a (invert_pairs pairs) in
+      let inverted = invert_pairs pairs in
+      let** _ =
+        infer_pairs b a inverted
+        |> Result.map_error (fun e ->
+               e ^ "\nin inverted pairs: " ^ show_pairs inverted)
+      in
       infer_pairs a b pairs
   | Pairs _ -> Error "unreachable (Pairs have non-biarrow type)"
   | Fix { phi; annot; omega = omega' } ->

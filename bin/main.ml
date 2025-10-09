@@ -17,7 +17,9 @@ let () =
       begin
         match infer_base ctx t with
         | Ok _ -> begin
-            try Eval.eval ctx.psi t |> show_term |> print_endline
+            try
+              Eval.eval ctx.psi t |> Eval.value_of_term |> show_value
+              |> print_endline
             with Failure e -> report "Runtime Error" e |> print_endline
           end
         | Error e -> report "Error" e |> print_endline
