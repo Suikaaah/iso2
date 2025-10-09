@@ -1,4 +1,37 @@
+type t = A | B
+type list = Nil | Cons of (t, list)
 type nat = 0 | S of nat
-type opt = None | Some of (nat, nat)
 
-(invert invert Some) (0, S S 0)
+let rec len : list <-> (list, nat) =
+| Nil <-> (Nil, 0)
+| h :: t <->
+    let (t', n) = len t in
+    (h :: t', S n)
+in
+
+let iso dup : t <-> (t, t) =
+| x <->
+    let y = x |> iso : t <-> t. x <-> x in
+    (x, y)
+in
+
+let rec snoc' : (list, t, nat) <-> (list, t, nat) =
+| (Nil, x, 0) <->
+    let (x_1, x_2) = dup x in
+    (x_1 :: Nil, x_2, 0)
+| (h :: t, x, S n) <->
+    let (t', x', n') = snoc' (t, x, n) in
+    (h :: t', x', S n')
+in
+
+let iso snoc : (list, t) <-> (list, t) =
+| (x, y) <->
+    let (x', n) = len x in
+    let (x'', y', n') = snoc' (x', y, n) in
+    let n'' = S n' in
+    let z = (invert len) (x'', n'') in
+    (z, y')
+in
+
+let l = snoc (A :: A :: Nil, B) in
+(l, (invert snoc) l)

@@ -22,6 +22,7 @@ open Types
 %token INVERT
 %token REC
 %token OF
+%token CONS
 %token <string> VAR
 %token <string> CTOR
 
@@ -68,6 +69,7 @@ value:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; vs = wtf(COMMA, value); RPAREN; { Tuple vs }
   | c = CTOR; v = value; { Cted { c ; v } }
+  | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
 
@@ -107,6 +109,7 @@ term:
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
   | omega = iso; t = term; { App { omega; t } }
+  | t_1 = term; CONS; t_2 = term; { App { omega = Named "Cons"; t = Tuple [t_1; t_2] } }
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
   | LET; ISO; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
     { LetIso { phi; omega = lambdas_of_params params omega; t } }

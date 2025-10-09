@@ -16,6 +16,7 @@ rule token = parse
   | "\\" { BACKSLASH }
   | "." { DOT }
   | "," { COMMA }
+  | "::" { CONS }
   | ":" { COLON }
   | "|>" { TRIANGLE }
   | "->" { ARROW }
