@@ -22,7 +22,7 @@ open Types
 %token INVERT
 %token REC
 %token OF
-%token CONS
+%token <string> INFIX
 %token <string> VAR
 %token <string> CTOR
 
@@ -53,7 +53,9 @@ typedef:
 
 variant:
   | c = CTOR; OF; a = base_type; { Iso { c; a } }
+  | c = INFIX; OF; a = base_type; { Iso { c; a } }
   | c = CTOR; { Value c }
+  | c = INFIX; { Value c }
 
 base_type:
   | LPAREN; RPAREN; { Unit }
@@ -69,7 +71,7 @@ value:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; vs = wtf(COMMA, value); RPAREN; { Tuple vs }
   | c = CTOR; v = value; { Cted { c ; v } }
-  | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
+  | v_1 = value; c = INFIX; v_2 = value; { Cted { c; v = Tuple [v_1; v_2] } }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
 
@@ -80,6 +82,8 @@ pat:
 expr:
   | v = value; { Value v }
   | LET; p_1 = pat; EQUAL; omega = iso; p_2 = pat; IN; e = expr; { Let { p_1; omega; p_2; e } }
+  | LET; p_1 = pat; EQUAL; p_2_l = pat; omega = INFIX; p_2_r = pat; IN; e = expr;
+    { Let { p_1; omega = Named omega; p_2 = Tuple [p_2_l; p_2_r]; e } }
   | LET; p_1 = pat; EQUAL; p_2 = pat; TRIANGLE; omega = iso; IN; e = expr; { Let { p_1; omega; p_2; e } }
 
 biarrowed:
@@ -109,7 +113,7 @@ term:
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
   | omega = iso; t = term; { App { omega; t } }
-  | t_1 = term; CONS; t_2 = term; { App { omega = Named "Cons"; t = Tuple [t_1; t_2] } }
+  | t_1 = term; omega = INFIX; t_2 = term; { App { omega = Named omega; t = Tuple [t_1; t_2] } }
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
   | LET; ISO; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
     { LetIso { phi; omega = lambdas_of_params params omega; t } }

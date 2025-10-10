@@ -95,8 +95,8 @@ let rec show_iso_type : iso_type -> string = function
 let rec show_value : value -> string = function
   | Unit -> "()"
   | Named x -> x
-  | Cted { c = "Cons"; v = Tuple [ v_1; v_2 ] } ->
-      show_value v_1 ^ " :: " ^ show_value v_2
+  | Cted { c; v = Tuple [ v_1; v_2 ] } when is_infix c ->
+      show_value v_1 ^ " " ^ c ^ " " ^ show_value v_2
   | Cted { c; v } -> c ^ " " ^ show_value v
   | Tuple (hd :: tl) -> show_list show_value hd tl
   | Tuple _ -> "unreachable"
@@ -131,8 +131,6 @@ let rec show_term : term -> string = function
   | Named x -> x
   | Tuple (hd :: tl) -> show_list show_term hd tl
   | Tuple _ -> "unreachable"
-  | App { omega = Named "Cons"; t = Tuple [ t_1; t_2 ] } ->
-      show_term t_1 ^ " :: " ^ show_term t_2
   | App { omega; t } -> "(" ^ show_iso omega ^ ") " ^ show_term t
   | Let { p; t_1; t_2 } ->
       "let " ^ show_pat p ^ " = " ^ show_term t_1 ^ " in " ^ show_term t_2

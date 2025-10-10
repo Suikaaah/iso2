@@ -32,6 +32,8 @@ let is_variable (value : string) : bool =
   let first = String.get value 0 |> Char.code in
   Char.code 'a' <= first && first <= Char.code 'z'
 
+let is_infix : string -> bool = String.starts_with ~prefix:"`"
+
 let rec for_all_pairs (f : 'a -> 'a -> 'b option) : 'a list -> 'b option =
   function
   | [] -> None

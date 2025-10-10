@@ -6,244 +6,254 @@
 let message =
   fun s ->
     match s with
-    | 170 ->
+    | 177 ->
         "CTOR IN\n"
-    | 169 ->
+    | 176 ->
         "LPAREN CTOR INVERT CTOR IN\n"
-    | 168 ->
+    | 175 ->
         "LPAREN INVERT CTOR IN\n"
-    | 167 ->
+    | 174 ->
         "LPAREN CTOR COMMA CTOR IN\n"
-    | 165 ->
+    | 172 ->
         "LPAREN CTOR COMMA TYPE\n"
-    | 164 ->
+    | 171 ->
         "LPAREN CTOR IN\n"
-    | 161 ->
+    | 168 ->
         "LPAREN CTOR TYPE\n"
-    | 160 ->
+    | 167 ->
         "LET VAR EQUAL CTOR IN LPAREN RPAREN VAR\n"
-    | 159 ->
+    | 166 ->
         "LET VAR EQUAL CTOR IN TYPE\n"
-    | 158 ->
+    | 165 ->
         "LET VAR EQUAL CTOR EOF\n"
-    | 157 ->
+    | 164 ->
         "LET VAR EQUAL TYPE\n"
-    | 156 ->
+    | 163 ->
         "LET VAR VAR\n"
-    | 155 ->
+    | 162 ->
         "LET ISO VAR COLON VAR BIARROW VAR EQUAL CTOR BIARROW CTOR IN LPAREN RPAREN VAR\n"
-    | 154 ->
+    | 161 ->
         "LET ISO VAR COLON VAR BIARROW VAR EQUAL CTOR BIARROW CTOR IN TYPE\n"
-    | 153 ->
+    | 160 ->
         "LET ISO VAR COLON VAR BIARROW VAR EQUAL CTOR BIARROW CTOR RPAREN\n"
-    | 152 ->
+    | 159 ->
         "LET ISO VAR COLON VAR BIARROW VAR EQUAL PIPE TYPE\n"
-    | 151 ->
+    | 158 ->
         "LET ISO VAR COLON VAR BIARROW VAR EQUAL TYPE\n"
-    | 150 ->
+    | 157 ->
         "LET ISO VAR COLON VAR BIARROW VAR RPAREN\n"
-    | 149 ->
+    | 156 ->
         "LET ISO VAR COLON TYPE\n"
-    | 148 ->
+    | 155 ->
         "LET ISO VAR EQUAL CTOR IN LPAREN RPAREN VAR\n"
-    | 147 ->
+    | 154 ->
         "LET ISO VAR EQUAL CTOR IN TYPE\n"
-    | 146 ->
+    | 153 ->
         "LET ISO VAR EQUAL CTOR TYPE\n"
-    | 145 ->
+    | 152 ->
         "LET ISO VAR EQUAL TYPE\n"
-    | 143 ->
+    | 150 ->
         "LET ISO VAR VAR\n"
-    | 142 ->
+    | 149 ->
         "LET ISO TYPE\n"
-    | 141 ->
+    | 148 ->
         "LET REC VAR COLON VAR BIARROW VAR EQUAL CTOR IN LPAREN RPAREN VAR\n"
-    | 140 ->
+    | 147 ->
         "LET REC VAR COLON VAR BIARROW VAR EQUAL CTOR IN TYPE\n"
-    | 139 ->
+    | 146 ->
         "LET REC VAR COLON VAR BIARROW VAR EQUAL CTOR TYPE\n"
-    | 138 ->
+    | 145 ->
         "CTOR INVERT CTOR IN\n"
-    | 137 ->
+    | 144 ->
         "CTOR LPAREN RPAREN VAR\n"
-    | 136 ->
+    | 143 ->
         "INVERT CTOR IN\n"
-    | 135 ->
-        "CTOR CONS LPAREN RPAREN VAR\n"
-    | 134 ->
-        "CTOR CONS TYPE\n"
-    | 133 ->
+    | 142 ->
+        "CTOR INFIX LPAREN RPAREN VAR\n"
+    | 141 ->
+        "CTOR INFIX TYPE\n"
+    | 140 ->
         "LET REC VAR COLON VAR BIARROW VAR EQUAL PIPE CTOR BIARROW CTOR IN LPAREN RPAREN VAR\n"
-    | 132 ->
+    | 139 ->
         "CTOR TYPE\n"
-    | 131 ->
+    | 138 ->
         "LET REC VAR COLON VAR BIARROW VAR EQUAL PIPE CTOR BIARROW CTOR IN TYPE\n"
-    | 130 ->
+    | 137 ->
         "LET REC VAR COLON VAR BIARROW VAR EQUAL PIPE CTOR BIARROW CTOR RPAREN\n"
-    | 129 ->
+    | 136 ->
         "LET REC VAR COLON VAR BIARROW VAR EQUAL PIPE TYPE\n"
-    | 128 ->
+    | 135 ->
         "LET REC VAR COLON VAR BIARROW VAR EQUAL TYPE\n"
-    | 127 ->
+    | 134 ->
         "LET REC VAR COLON VAR BIARROW VAR RPAREN\n"
-    | 126 ->
+    | 133 ->
         "LET REC VAR COLON TYPE\n"
-    | 125 ->
+    | 132 ->
         "LET REC VAR LPAREN VAR COLON VAR BIARROW VAR RPAREN EQUAL\n"
-    | 123 ->
+    | 130 ->
         "LET ISO VAR LPAREN VAR COLON VAR BIARROW VAR RPAREN VAR\n"
-    | 121 ->
+    | 128 ->
         "LET ISO VAR LPAREN VAR COLON VAR BIARROW VAR EQUAL\n"
-    | 120 ->
+    | 127 ->
         "LET ISO VAR LPAREN VAR COLON TYPE\n"
-    | 119 ->
+    | 126 ->
         "LET ISO VAR LPAREN VAR VAR\n"
-    | 118 ->
+    | 125 ->
         "LET ISO VAR LPAREN TYPE\n"
-    | 117 ->
+    | 124 ->
         "LET REC VAR VAR\n"
-    | 116 ->
+    | 123 ->
         "LET REC TYPE\n"
-    | 115 ->
+    | 122 ->
         "LET TYPE\n"
-    | 114 ->
+    | 121 ->
         "LPAREN LPAREN TYPE\n"
-    | 112 ->
+    | 119 ->
         "LPAREN VAR TYPE\n"
-    | 111 ->
+    | 118 ->
         "LPAREN TYPE\n"
-    | 107 ->
+    | 114 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL CTOR VAR IN TYPE\n"
-    | 106 ->
+    | 113 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL CTOR VAR TRIANGLE\n"
-    | 105 ->
+    | 112 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL CTOR TYPE\n"
-    | 103 ->
+    | 110 ->
+        "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL VAR INFIX VAR IN TYPE\n"
+    | 109 ->
+        "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL VAR INFIX VAR VAR\n"
+    | 108 ->
+        "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL VAR INFIX TYPE\n"
+    | 106 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW CTOR COMMA\n"
-    | 102 ->
+    | 105 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL VAR TRIANGLE CTOR IN TYPE\n"
-    | 101 ->
+    | 104 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL VAR TRIANGLE CTOR TYPE\n"
-    | 100 ->
+    | 103 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL VAR TRIANGLE TYPE\n"
-    | 99 ->
+    | 102 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL VAR IN\n"
-    | 98 ->
+    | 101 ->
         "INVERT CTOR TYPE\n"
-    | 96 ->
+    | 99 ->
         "INVERT LPAREN CTOR TYPE\n"
-    | 95 ->
+    | 98 ->
         "FIX VAR COLON VAR BIARROW VAR DOT CTOR TYPE\n"
-    | 94 ->
+    | 97 ->
         "INVERT CTOR CTOR TYPE\n"
-    | 93 ->
+    | 96 ->
         "BACKSLASH VAR COLON VAR BIARROW VAR DOT CTOR TYPE\n"
-    | 92 ->
+    | 95 ->
         "BACKSLASH VAR COLON VAR BIARROW VAR DOT TYPE\n"
-    | 91 ->
+    | 94 ->
         "BACKSLASH VAR COLON VAR BIARROW VAR RPAREN\n"
-    | 90 ->
+    | 93 ->
         "BACKSLASH VAR COLON TYPE\n"
-    | 89 ->
+    | 92 ->
         "BACKSLASH VAR VAR\n"
-    | 88 ->
+    | 91 ->
         "BACKSLASH TYPE\n"
-    | 86 ->
+    | 89 ->
         "FIX VAR COLON VAR BIARROW VAR DOT TYPE\n"
-    | 85 ->
+    | 88 ->
         "FIX VAR COLON VAR BIARROW VAR RPAREN\n"
-    | 84 ->
+    | 87 ->
         "FIX VAR COLON TYPE\n"
-    | 83 ->
+    | 86 ->
         "FIX VAR VAR\n"
-    | 82 ->
+    | 85 ->
         "FIX TYPE\n"
-    | 81 ->
+    | 84 ->
         "INVERT LPAREN TYPE\n"
-    | 79 ->
+    | 82 ->
         "INVERT TYPE\n"
-    | 77 ->
+    | 80 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW CTOR PIPE TYPE\n"
-    | 74 ->
+    | 77 ->
         "ISO COLON VAR BIARROW VAR DOT PIPE TYPE\n"
-    | 73 ->
+    | 76 ->
         "ISO COLON VAR BIARROW VAR DOT TYPE\n"
-    | 72 ->
+    | 75 ->
         "ISO COLON VAR BIARROW VAR RPAREN\n"
-    | 71 ->
+    | 74 ->
         "ISO COLON TYPE\n"
-    | 70 ->
+    | 73 ->
         "ISO VAR\n"
-    | 69 ->
+    | 72 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL LPAREN TYPE\n"
-    | 68 ->
+    | 71 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL VAR TYPE\n"
-    | 67 ->
+    | 70 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR EQUAL TYPE\n"
-    | 66 ->
+    | 69 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET VAR VAR\n"
-    | 65 ->
+    | 68 ->
         "LET LPAREN VAR COMMA VAR VAR\n"
-    | 63 ->
+    | 66 ->
         "LET LPAREN VAR COMMA TYPE\n"
-    | 62 ->
+    | 65 ->
         "LET LPAREN VAR TRIANGLE\n"
-    | 59 ->
+    | 62 ->
         "LET LPAREN TYPE\n"
-    | 57 ->
+    | 60 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW LET TYPE\n"
-    | 56 ->
+    | 59 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR BIARROW TYPE\n"
-    | 55 ->
+    | 58 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR RPAREN\n"
-    | 54 ->
+    | 57 ->
         "ISO COLON VAR BIARROW VAR DOT LPAREN CTOR COMMA CTOR REC\n"
-    | 52 ->
+    | 55 ->
         "ISO COLON VAR BIARROW VAR DOT LPAREN CTOR COMMA TYPE\n"
-    | 51 ->
+    | 54 ->
         "ISO COLON VAR BIARROW VAR DOT LPAREN CTOR RPAREN\n"
-    | 48 ->
-        "ISO COLON VAR BIARROW VAR DOT CTOR CONS VAR TYPE\n"
-    | 47 ->
-        "ISO COLON VAR BIARROW VAR DOT CTOR CONS TYPE\n"
-    | 46 ->
+    | 51 ->
+        "ISO COLON VAR BIARROW VAR DOT CTOR INFIX VAR TYPE\n"
+    | 50 ->
+        "ISO COLON VAR BIARROW VAR DOT CTOR INFIX TYPE\n"
+    | 49 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR VAR TYPE\n"
-    | 45 ->
+    | 48 ->
         "ISO COLON VAR BIARROW VAR DOT CTOR TYPE\n"
-    | 43 ->
+    | 46 ->
         "ISO COLON VAR BIARROW VAR DOT LPAREN TYPE\n"
-    | 41 ->
+    | 44 ->
         "REC VAR COLON VAR BIARROW VAR DOT PIPE TYPE\n"
-    | 40 ->
+    | 43 ->
         "REC VAR COLON VAR BIARROW VAR DOT TYPE\n"
-    | 39 ->
+    | 42 ->
         "REC VAR COLON VAR BIARROW VAR RPAREN\n"
-    | 38 ->
+    | 41 ->
         "ISO COLON LPAREN VAR VAR\n"
-    | 36 ->
+    | 39 ->
         "ISO COLON VAR BIARROW TYPE\n"
-    | 35 ->
+    | 38 ->
         "ISO COLON VAR VAR\n"
-    | 34 ->
+    | 37 ->
         "ISO COLON VAR BIARROW VAR ARROW VAR BIARROW VAR VAR\n"
-    | 33 ->
+    | 36 ->
         "ISO COLON VAR BIARROW VAR ARROW TYPE\n"
-    | 31 ->
+    | 34 ->
         "ISO COLON LPAREN VAR BIARROW VAR EQUAL\n"
-    | 30 ->
+    | 33 ->
         "ISO COLON LPAREN TYPE\n"
-    | 29 ->
+    | 32 ->
         "REC VAR COLON TYPE\n"
-    | 28 ->
+    | 31 ->
         "REC VAR VAR\n"
-    | 27 ->
+    | 30 ->
         "REC TYPE\n"
-    | 26 ->
+    | 29 ->
         "VAR TYPE\n"
-    | 19 ->
+    | 22 ->
         "TYPE VAR EQUAL CTOR PIPE VAR\n"
-    | 18 ->
+    | 21 ->
         "TYPE VAR EQUAL CTOR OF VAR TRIANGLE\n"
+    | 19 ->
+        "TYPE VAR EQUAL CTOR OF TYPE\n"
+    | 18 ->
+        "TYPE VAR EQUAL CTOR TRIANGLE\n"
     | 16 ->
         "ISO COLON LPAREN VAR COMMA VAR VAR\n"
     | 14 ->
@@ -253,9 +263,9 @@ let message =
     | 9 ->
         "ISO COLON VAR BIARROW LPAREN TYPE\n"
     | 7 ->
-        "TYPE VAR EQUAL CTOR OF TYPE\n"
+        "TYPE VAR EQUAL INFIX OF TYPE\n"
     | 6 ->
-        "TYPE VAR EQUAL CTOR TRIANGLE\n"
+        "TYPE VAR EQUAL INFIX TRIANGLE\n"
     | 5 ->
         "TYPE VAR EQUAL PIPE VAR\n"
     | 3 ->

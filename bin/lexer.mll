@@ -16,7 +16,6 @@ rule token = parse
   | "\\" { BACKSLASH }
   | "." { DOT }
   | "," { COMMA }
-  | "::" { CONS }
   | ":" { COLON }
   | "|>" { TRIANGLE }
   | "->" { ARROW }
@@ -33,8 +32,8 @@ rule token = parse
   | string
     {
       let x = lexeme lexbuf in
-      if Util.is_variable x
-      then VAR x
+      if Util.is_infix x then INFIX x
+      else if Util.is_variable x then VAR x
       else CTOR x
     }
 
