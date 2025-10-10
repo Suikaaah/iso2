@@ -5,6 +5,8 @@ open Types
 %token EOF
 %token LPAREN
 %token RPAREN
+%token LBRACE
+%token RBRACE
 %token PIPE
 %token BACKSLASH
 %token DOT
@@ -69,6 +71,7 @@ iso_type:
 
 value:
   | LPAREN; RPAREN; { Unit }
+  | LPAREN; v = value; RPAREN; { v }
   | LPAREN; vs = wtf(COMMA, value); RPAREN; { Tuple vs }
   | c = CTOR; v = value; { Cted { c ; v } }
   | v_1 = value; c = INFIX; v_2 = value; { Cted { c; v = Tuple [v_1; v_2] } }
@@ -90,7 +93,7 @@ biarrowed:
   | v = value; BIARROW; e = expr; { (v, e) }
 
 iso:
-  | LPAREN; omega = iso; RPAREN; { omega }
+  | LBRACE; omega = iso; RBRACE; { omega }
   | ISO; COLON; annot = iso_type; DOT; PIPE?; pairs = separated_nonempty_list(PIPE, biarrowed);
     { Pairs { annot; pairs } }
 
@@ -109,6 +112,7 @@ param:
 
 term:
   | LPAREN; RPAREN; { Unit }
+  | LPAREN; t = term; RPAREN; { t }
   | LPAREN; ts = wtf(COMMA, term); RPAREN; { Tuple ts }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }

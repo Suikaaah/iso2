@@ -11,5 +11,5 @@ in
 
 let result = add (S S 0, S S S 0) in
 
-(result, (invert add) result)
+(result, {invert add} result)
 

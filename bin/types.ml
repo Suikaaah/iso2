@@ -87,14 +87,15 @@ let rec show_base_type : base_type -> string = function
   | Named x -> x
 
 let rec show_iso_type : iso_type -> string = function
-  | BiArrow { a; b } ->
-      "(" ^ show_base_type a ^ " <-> " ^ show_base_type b ^ ")"
+  | BiArrow { a; b } -> show_base_type a ^ " <-> " ^ show_base_type b
   | Arrow { t_1; t_2 } ->
-      "(" ^ show_iso_type t_1 ^ " -> " ^ show_iso_type t_2 ^ ")"
+      "(" ^ show_iso_type t_1 ^ ") -> (" ^ show_iso_type t_2 ^ ")"
 
 let rec show_value : value -> string = function
   | Unit -> "()"
   | Named x -> x
+  | Cted { c; v = Tuple [ (Cted _ as v_1); v_2 ] } when is_infix c ->
+      "(" ^ show_value v_1 ^ ") " ^ c ^ " " ^ show_value v_2
   | Cted { c; v = Tuple [ v_1; v_2 ] } when is_infix c ->
       show_value v_1 ^ " " ^ c ^ " " ^ show_value v_2
   | Cted { c; v } -> c ^ " " ^ show_value v
@@ -108,8 +109,11 @@ let rec show_pat : pat -> string = function
 
 let rec show_expr : expr -> string = function
   | Value v -> show_value v
+  | Let { p_1; omega = (Pairs _ | Named _) as omega; p_2; e } ->
+      "let " ^ show_pat p_1 ^ " = " ^ show_iso omega ^ " " ^ show_pat p_2
+      ^ " in " ^ show_expr e
   | Let { p_1; omega; p_2; e } ->
-      "let " ^ show_pat p_1 ^ " = (" ^ show_iso omega ^ ") " ^ show_pat p_2
+      "let " ^ show_pat p_1 ^ " = {" ^ show_iso omega ^ "} " ^ show_pat p_2
       ^ " in " ^ show_expr e
 
 and show_pairs (pairs : (value * expr) list) : string =
@@ -123,7 +127,9 @@ and show_iso : iso -> string = function
   | Fix { phi; omega; _ } -> "fix " ^ phi ^ ". " ^ show_iso omega
   | Lambda { psi; omega; _ } -> "\\" ^ psi ^ ". " ^ show_iso omega
   | Named omega -> omega
-  | App { omega_1; omega_2 } -> "(" ^ show_iso omega_1 ^ ") " ^ show_iso omega_2
+  | App { omega_1 = (Pairs _ | Named _) as omega_1; omega_2 } ->
+      show_iso omega_1 ^ " " ^ show_iso omega_2
+  | App { omega_1; omega_2 } -> "{" ^ show_iso omega_1 ^ "} " ^ show_iso omega_2
   | Invert omega -> "invert " ^ show_iso omega
 
 let rec show_term : term -> string = function
@@ -131,8 +137,19 @@ let rec show_term : term -> string = function
   | Named x -> x
   | Tuple (hd :: tl) -> show_list show_term hd tl
   | Tuple _ -> "unreachable"
-  | App { omega; t } -> "(" ^ show_iso omega ^ ") " ^ show_term t
+  | App
+      {
+        omega = Named x;
+        t = Tuple [ ((App _ | Let _ | LetIso _) as t_1); t_2 ];
+      }
+    when is_infix x ->
+      "(" ^ show_term t_1 ^ ") " ^ x ^ " " ^ show_term t_2
+  | App { omega = Named x; t = Tuple [ t_1; t_2 ] } when is_infix x ->
+      show_term t_1 ^ " " ^ x ^ " " ^ show_term t_2
+  | App { omega = (Pairs _ | Named _) as omega; t } ->
+      show_iso omega ^ " " ^ show_term t
+  | App { omega; t } -> "{" ^ show_iso omega ^ "} " ^ show_term t
   | Let { p; t_1; t_2 } ->
       "let " ^ show_pat p ^ " = " ^ show_term t_1 ^ " in " ^ show_term t_2
   | LetIso { phi; omega; t } ->
-      "let iso " ^ phi ^ " = (" ^ show_iso omega ^ ") " ^ show_term t
+      "let iso " ^ phi ^ " = " ^ show_iso omega ^ " in " ^ show_term t

@@ -18,4 +18,4 @@ let rec cantor_pairing : (nat, nat) <-> nat =
 in
 
 let result = cantor_pairing (S S 0, S S S 0) in
-(result, (invert cantor_pairing) result)
+(result, {invert cantor_pairing} result)

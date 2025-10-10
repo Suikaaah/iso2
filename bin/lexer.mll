@@ -4,7 +4,7 @@ open Parser
 }
 
 let white = [' ' '\t' '\r' '\n']+
-let string = [^ '(' ')' '|' '\\' '.' ',' ':' '-' '<' '>' '=' ' ' '\t' '\r' '\n']+
+let string = [^ '(' ')' '{' '}' '|' '\\' '.' ',' ':' '-' '<' '>' '=' ' ' '\t' '\r' '\n']+
 
 rule token = parse
   | eof { EOF }
@@ -12,6 +12,8 @@ rule token = parse
   | white { token lexbuf }
   | "(" { LPAREN }
   | ")" { RPAREN }
+  | "{" { LBRACE }
+  | "}" { RBRACE }
   | "|" { PIPE }
   | "\\" { BACKSLASH }
   | "." { DOT }

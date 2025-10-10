@@ -1,13 +1,13 @@
 type a = 0 | 1 | 2
 type b = A | B | C
-type al = ANil | ACons of (a, al)
-type bl = BNil | BCons of (b, bl)
+type al = ANil | `ACons of (a, al)
+type bl = BNil | `BCons of (b, bl)
 
 let rec map (f : a <-> b) : al <-> bl =
-| ACons (h', t') <->
+| h' `ACons t' <->
     let h = f h' in
     let t = map t' in
-    BCons (h, t)
+    h `BCons t
 | ANil <-> BNil
 in
 
@@ -17,6 +17,6 @@ let iso f : a <-> b =
 | 2 <-> C
 in
 
-let result = (map f) ACons (1, ACons (0, ACons (2, ANil))) in
+let result = {map f} 1 `ACons 0 `ACons 2 `ACons ANil in
 
-(result, (invert map f) result)
+(result, {invert map f} result)
