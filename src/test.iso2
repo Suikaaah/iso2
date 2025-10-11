@@ -1,37 +1,5 @@
-type t = A | B
-type list = Nil | `Cons of (t, list)
-type nat = 0 | S of nat
+type char = A | B | C
+type btree = Leaf of char | `Node of (btree, btree)
+type option = None | Some of (char, char)
 
-let rec len : list <-> (list, nat) =
-| Nil <-> (Nil, 0)
-| h `Cons t <->
-    let (t', n) = len t in
-    (h `Cons t', S n)
-in
-
-let iso dup : t <-> (t, t) =
-| x <->
-    let y = {iso : t <-> t. x <-> x} x in
-    (x, y)
-in
-
-let rec snoc' : (list, t, nat) <-> (list, t, nat) =
-| (Nil, x, 0) <->
-    let (x_1, x_2) = dup x in
-    (x_1 `Cons Nil, x_2, 0)
-| (h `Cons t, x, S n) <->
-    let (t', x', n') = snoc' (t, x, n) in
-    (h `Cons t', x', S n')
-in
-
-let iso snoc : (list, t) <-> (list, t) =
-| (x, y) <->
-    let (x', n) = len x in
-    let (x'', y', n') = snoc' (x', y, n) in
-    let n'' = S n' in
-    let z = (x'', n'') |> invert len in
-    (z, y')
-in
-
-let l = snoc (A `Cons A `Cons Nil, B) in
-(l, {invert snoc} l)
+Some (A, B)
