@@ -6,14 +6,13 @@ type value =
   | Tuple of v_list
 
 type v_list = VNil | `VCons of (value, v_list)
-type ve_list = VENil | `VECons of ((value, expr), ve_list)
 
 type expr =
   | Value of value
   | Let of (pat, fn, pat, expr)
 
-type fn =
-  | Pairs of ve_list
-  | 
+type pair = `Pair of (value, expr)
+
+type pairs = PNil | `PCons of (pair, pairs)
 
 ()

@@ -1,5 +1,30 @@
-type char = A | B | C
-type btree = Leaf of char | `Node of (btree, btree)
-type option = None | Some of (char, char)
+type char =
+  | A | B | C | D | E | F | G | H | I | J | K | L | M
+  | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
+type str = ! | ` of (char, str)
 
-Some (A, B)
+let iso id          : str <-> str        = s <-> s                      in
+let iso with_nil    : str <-> (str, str) = s <-> (s, !)                 in
+let iso dup_to_left : str <-> (str, str) = r <-> let l = id r in (l, r) in
+let iso remove_right                     = invert dup_to_left           in
+
+(* rev_aux (l, r) = (<l reversed> @ r, l) *)
+let rec rev_aux : (str, str) <-> (str, str) =
+  | (!, s) <-> (s, !)
+  | (c ` l, r) <->
+      let r = c ` r in
+      let (l, r) = rev_aux (l, r) in
+      (l, c ` r)
+in
+
+let iso rev : str <-> str =
+  | s <->
+      let p = with_nil s in
+
+      (* p = rev_aux (s, !) = (<s reversed>, s) *)
+      let p = rev_aux p in
+      let s = remove_right p in
+      s
+in
+
+rev O ` L ` L ` E ` H ` !
