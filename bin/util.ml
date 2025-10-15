@@ -56,8 +56,15 @@ let union ~(weak : 'a StrMap.t) ~(strong : 'a StrMap.t) : 'a StrMap.t =
   let merger _ _ y = Some y in
   StrMap.union merger weak strong
 
+let union_list : 'a StrMap.t list -> 'a StrMap.t =
+  List.fold_left (fun weak strong -> union ~weak ~strong) StrMap.empty
+
 let show_list (f : 'a -> string) (hd : 'a) (tl : 'a list) : string =
   let init = "(" ^ f hd in
   List.fold_left (fun acc a -> acc ^ ", " ^ f a) init tl ^ ")"
 
 let boldred (value : string) : string = "\x1b[1;31m" ^ value ^ "\x1b[0m"
+
+let find_res (what : string) (map : 'a StrMap.t) : 'a myresult =
+  StrMap.find_opt what map
+  |> Option.to_result ~none:(what ^ " was not found in current context")

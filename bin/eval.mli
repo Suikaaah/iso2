@@ -1,5 +1,7 @@
 open Types
-open Inference
+open Util
+
+type psi = iso_type StrMap.t
 
 val invert : psi -> iso -> iso
 val unify : pat -> term -> (string * term) list

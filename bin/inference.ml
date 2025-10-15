@@ -1,10 +1,128 @@
-open Types
 open Util
 
-type psi = iso_type StrMap.t
-type delta = base_type StrMap.t
-type context = { psi : psi; delta : delta }
+type any =
+  | Unit
+  | Product of any list
+  | Named of string
+  | BiArrow of { a : any; b : any }
+  | Arrow of { a : any; b : any }
+  | Var of int
 
+type equation = any * any
+type subst = { what : int; into : any }
+type infered = { a : any; e : equation list }
+type elt = Mono of any | Scheme of { forall : int list; a : any }
+type context = elt StrMap.t
+type generator = { mutable i : int }
+
+let fresh (gen : generator) : int =
+  let i = gen.i in
+  gen.i <- i + 1;
+  i
+
+let rec subst (s : subst) : any -> any = function
+  | Var x when x = s.what -> s.into
+  | Product l -> Product (List.map (subst s) l)
+  | BiArrow { a; b } -> BiArrow { a = subst s a; b = subst s b }
+  | Arrow { a; b } -> Arrow { a = subst s a; b = subst s b }
+  | otherwise -> otherwise
+
+let subst_in_equations (s : subst) : equation list -> equation list =
+  List.map (fun (a, b) -> (subst s a, subst s b))
+
+let instantiate (gen : generator) : elt -> any = function
+  | Mono a -> a
+  | Scheme { forall; a } ->
+      List.fold_left
+        (fun a what -> subst { what; into = Var (fresh gen) } a)
+        a forall
+
+let rec occurs (x : int) : any -> bool = function
+  | Product l -> List.exists (occurs x) l
+  | BiArrow { a; b } | Arrow { a; b } -> occurs x a || occurs x b
+  | Var y -> x = y
+  | _ -> false
+
+let rec unify : equation list -> subst list myresult = function
+  | [] -> Ok []
+  | e :: e' -> begin
+      match e with
+      | a, b when a = b -> unify e'
+      | Var x, b when occurs x b |> not ->
+          let s = { what = x; into = b } in
+          let++ unified = subst_in_equations s e' |> unify in
+          s :: unified
+      | a, Var x when occurs x a |> not ->
+          let s = { what = x; into = a } in
+          let++ unified = subst_in_equations s e' |> unify in
+          s :: unified
+      | Product l, Product r when List.compare_lengths l r = 0 ->
+          List.combine l r @ e' |> unify
+      | BiArrow { a = a_1; b = b_1 }, BiArrow { a = a_2; b = b_2 } ->
+          (a_1, a_2) :: (b_1, b_2) :: e' |> unify
+      | Arrow { a = a_1; b = b_1 }, Arrow { a = a_2; b = b_2 } ->
+          (a_1, a_2) :: (b_1, b_2) :: e' |> unify
+      | _ -> Error "unable to unify"
+    end
+
+let rec context_of_pat (gen : generator) (p : Types.pat) : any * any StrMap.t =
+  match p with
+  | Named x ->
+      let fresh = Var (fresh gen) in
+      (fresh, StrMap.singleton x fresh)
+  | Tuple l ->
+      let base_types, binds = List.map (context_of_pat gen) l |> List.split in
+      (Product base_types, union_list binds)
+
+let rec infer_term (t : Types.term) (gen : generator) (ctx : context) :
+    infered myresult =
+  match t with
+  | Unit -> Ok { a = Unit; e = [] }
+  | Named x ->
+      let++ elt = find_res x ctx in
+      { a = instantiate gen elt; e = [] }
+  | Tuple l ->
+      let++ infered = List.map (fun t -> infer_term t gen ctx) l |> bind_all in
+      let product = List.map (fun { a; _ } -> a) infered in
+      let equations = List.map (fun { e; _ } -> e) infered |> List.flatten in
+      let fresh = Var (fresh gen) in
+      { a = fresh; e = (fresh, Product product) :: equations }
+  | App { omega; t } ->
+      let** { a = a_1; e = e_1 } = infer_iso omega gen ctx in
+      let++ { a = a_2; e = e_2 } = infer_term t gen ctx in
+      let e = e_1 @ e_2 in
+      let fresh = Var (fresh gen) in
+      { a = fresh; e = (a_1, BiArrow { a = a_2; b = fresh }) :: e }
+  | Let { p; t_1; t_2 } -> asdf
+
+(*
+| Unit
+| Named of string
+| Tuple of term list
+| App of { omega : iso; t : term }
+| Let of { p : pat; t_1 : term; t_2 : term }
+| LetIso of { phi : string; omega : iso; t : term }
+*)
+
+(*
+| Pairs of { annot : iso_type; pairs : (value * expr) list }
+| Fix of { phi : string; annot : iso_type; omega : iso }
+| Lambda of { psi : string; annot : iso_type; omega : iso }
+| Named of string
+| App of { omega_1 : iso; omega_2 : iso }
+| Invert of iso
+*)
+and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
+    infered myresult =
+  a
+
+let rec invert_iso_type : Types.iso_type -> Types.iso_type = function
+  | BiArrow { a; b } -> BiArrow { a = b; b = a }
+  | Arrow { t_1; t_2 } ->
+      let t_1 = invert_iso_type t_1 in
+      let t_2 = invert_iso_type t_2 in
+      Arrow { t_1; t_2 }
+(*
 let rec is_orthogonal (u : value) (v : value) : string option =
   let msg =
     lazy (Some (show_value u ^ " and " ^ show_value v ^ " are not orthogonal"))
@@ -24,29 +142,6 @@ let rec is_orthogonal (u : value) (v : value) : string option =
       if is_error then Lazy.force msg else None
   | _ -> None
 
-let rec invert_iso_type : iso_type -> iso_type = function
-  | BiArrow { a; b } -> BiArrow { a = b; b = a }
-  | Arrow { t_1; t_2 } ->
-      let t_1 = invert_iso_type t_1 in
-      let t_2 = invert_iso_type t_2 in
-      Arrow { t_1; t_2 }
-
-let rec unify_pat (p : pat) (a : base_type) : delta myresult =
-  let msg = lazy (show_pat p ^ " with type " ^ show_base_type a) in
-  match (p, a) with
-  | Named x, _ -> Ok (StrMap.singleton x a)
-  | Tuple tpl, Product prd ->
-      let** combined =
-        combine tpl prd
-        |> Option.to_result ~none:("arity mismatch: " ^ Lazy.force msg)
-      in
-      let** list =
-        List.map (fun (p, a) -> unify_pat p a) combined |> bind_all
-      in
-      List.fold_left
-        (fun acc delta -> Result.bind acc (fun acc -> union_nodup acc delta))
-        (Ok StrMap.empty) list
-  | _ -> Error ("unable to unify " ^ Lazy.force msg)
 
 let rec unify_value (ctx : context) (v : value) (a : base_type) : delta myresult
     =
@@ -107,6 +202,23 @@ let invert_pairs (pairs : (value * expr) list) : (value * expr) list =
   in
   let invert_pair (v, e) = invert_expr e (Value v) in
   List.map invert_pair pairs
+
+let rec unify_pat (p : pat) (a : base_type) : base_type StrMap.t myresult =
+  let msg = lazy (show_pat p ^ " and type " ^ show_base_type a) in
+  match (p, a) with
+  | Named x, _ -> Ok (StrMap.singleton x a)
+  | Tuple tpl, Product prd ->
+      let** combined =
+        combine tpl prd
+        |> Option.to_result ~none:("arity mismatch: " ^ Lazy.force msg)
+      in
+      let** list =
+        List.map (fun (p, a) -> unify_pat p a) combined |> bind_all
+      in
+      List.fold_left
+        (fun acc delta -> Result.bind acc (fun acc -> union_nodup acc delta))
+        (Ok StrMap.empty) list
+  | _ -> Error ("unable to unify " ^ Lazy.force msg)
 
 let rec infer_base_in_expr (ctx : context) (e : expr) : base_type myresult =
   match e with
@@ -263,3 +375,4 @@ let build_ctx (defs : typedef list) : context =
     List.fold_left (fun acc x -> append acc (build_lctx x)) empty_lctx defs
   in
   { psi = StrMap.of_list psi; delta = StrMap.of_list delta }
+*)

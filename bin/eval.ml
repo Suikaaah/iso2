@@ -2,6 +2,8 @@ open Types
 open Util
 open Inference
 
+type psi = iso_type StrMap.t
+
 (* keeping annotation correct just in case *)
 
 let rec invert (psi : psi) (omega : iso) : iso =
