@@ -17,6 +17,7 @@ type generator = { mutable i : int }
 
 val fresh : generator -> int
 val subst : subst -> any -> any
+val subst_in_context : subst -> context -> context
 val subst_in_equations : subst -> equation list -> equation list
 val instantiate : generator -> elt -> any
 val occurs : int -> any -> bool

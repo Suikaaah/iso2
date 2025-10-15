@@ -27,6 +27,16 @@ let rec subst (s : subst) : any -> any = function
   | Arrow { a; b } -> Arrow { a = subst s a; b = subst s b }
   | otherwise -> otherwise
 
+let subst_in_context (s : subst) : context -> context =
+  StrMap.map
+    begin
+      function
+      | Mono a -> Mono (subst s a)
+      | Scheme { forall; a } when List.for_all (( <> ) s.what) forall ->
+          Scheme { forall; a = subst s a }
+      | otherwise -> otherwise
+    end
+
 let subst_in_equations (s : subst) : equation list -> equation list =
   List.map (fun (a, b) -> (subst s a, subst s b))
 
@@ -73,6 +83,29 @@ let rec context_of_pat (gen : generator) (p : Types.pat) : any * any StrMap.t =
   | Tuple l ->
       let base_types, binds = List.map (context_of_pat gen) l |> List.split in
       (Product base_types, union_list binds)
+
+let find_generalizable : any -> context -> int list =
+  let module IntSet = Set.Make (Int) in
+  let rec find_in_any =
+    function
+      | Unit -> []
+      | Product l -> List.map find_in_any l |> List.flatten
+      | Named _ -> []
+      | BiArrow { a; b } | Arrow { a; b } ->
+          (find_in_any a) @ (find_in_any b)
+      | Var x -> [x]
+  in
+  let rec find_in_context =
+    function
+      | Mono a -> find_in_any a
+      | Scheme { forall; a } -> find_in_any 
+
+let generalize (e : equation list) (ctx : context) (p : Types.pat) (a : any)
+    (gen : generator) : (context * equation) myresult =
+  let++ substs = unify e in
+  let u = List.fold_left (fun a s -> subst s a) a substs in
+  let ctx' = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
+  let product, binds = context_of_pat gen p in
 
 let rec infer_term (t : Types.term) (gen : generator) (ctx : context) :
     infered myresult =
