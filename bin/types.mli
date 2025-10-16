@@ -17,9 +17,9 @@ type expr =
   | Let of { p_1 : pat; omega : iso; p_2 : pat; e : expr }
 
 and iso =
-  | Pairs of { annot : iso_type; pairs : (value * expr) list }
-  | Fix of { phi : string; annot : iso_type; omega : iso }
-  | Lambda of { psi : string; annot : iso_type; omega : iso }
+  | Pairs of (value * expr) list
+  | Fix of { phi : string; omega : iso }
+  | Lambda of { psi : string; omega : iso }
   | Named of string
   | App of { omega_1 : iso; omega_2 : iso }
   | Invert of iso
@@ -43,7 +43,7 @@ val value_of_expr : expr -> value
 val contains : string -> pat -> bool
 val contains_value : string -> value -> bool
 val contains_pairs : string -> (value * expr) list -> bool
-val lambdas_of_params : (string * iso_type) list -> iso -> iso
+val lambdas_of_params : string list -> iso -> iso
 val show_base_type : base_type -> string
 val show_iso_type : iso_type -> string
 val show_value : value -> string

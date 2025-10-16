@@ -84,28 +84,41 @@ let rec context_of_pat (gen : generator) (p : Types.pat) : any * any StrMap.t =
       let base_types, binds = List.map (context_of_pat gen) l |> List.split in
       (Product base_types, union_list binds)
 
-let find_generalizable : any -> context -> int list =
+(* todo: optimization *)
+let find_generalizable (a : any) (ctx : context) : int list =
   let module IntSet = Set.Make (Int) in
-  let rec find_in_any =
-    function
-      | Unit -> []
-      | Product l -> List.map find_in_any l |> List.flatten
-      | Named _ -> []
-      | BiArrow { a; b } | Arrow { a; b } ->
-          (find_in_any a) @ (find_in_any b)
-      | Var x -> [x]
+  let rec find_in_any = function
+    | Unit -> IntSet.empty
+    | Product l ->
+        List.fold_left
+          (fun acc a -> find_in_any a |> IntSet.union acc)
+          IntSet.empty l
+    | Named _ -> IntSet.empty
+    | BiArrow { a; b } | Arrow { a; b } ->
+        IntSet.union (find_in_any a) (find_in_any b)
+    | Var x -> IntSet.singleton x
   in
-  let rec find_in_context =
-    function
+  let rec find_in_context ctx =
+    let f = function
       | Mono a -> find_in_any a
-      | Scheme { forall; a } -> find_in_any 
+      | Scheme { forall; a } ->
+          IntSet.diff (find_in_any a) (IntSet.of_list forall)
+    in
+    StrMap.fold (fun _ a acc -> f a |> IntSet.union acc) ctx IntSet.empty
+  in
+  IntSet.diff (find_in_any a) (find_in_context ctx) |> IntSet.to_list
 
 let generalize (e : equation list) (ctx : context) (p : Types.pat) (a : any)
     (gen : generator) : (context * equation) myresult =
   let++ substs = unify e in
   let u = List.fold_left (fun a s -> subst s a) a substs in
-  let ctx' = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
+  let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
   let product, binds = context_of_pat gen p in
+  let generalized =
+    let forall = find_generalizable u ctx in
+    StrMap.map (fun a -> Scheme { forall; a }) binds
+  in
+  (union ~weak:ctx ~strong:generalized, (u, product))
 
 let rec infer_term (t : Types.term) (gen : generator) (ctx : context) :
     infered myresult =
@@ -126,8 +139,16 @@ let rec infer_term (t : Types.term) (gen : generator) (ctx : context) :
       let e = e_1 @ e_2 in
       let fresh = Var (fresh gen) in
       { a = fresh; e = (a_1, BiArrow { a = a_2; b = fresh }) :: e }
-  | Let { p; t_1; t_2 } -> asdf
-
+  | Let { p; t_1; t_2 } ->
+      let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
+      let** ctx, e = generalize e_1 ctx p a_1 gen in
+      let++ { a = a_2; e = e_2 } = infer_term t_2 gen ctx in
+      { a = a_2; e = (e :: e_1) @ e_2 }
+  | LetIso { phi; omega; t } ->
+      let** { a = a_1; e = e_1 } = infer_iso omega gen ctx in
+      let** ctx, e = generalize e_1 ctx (Types.Named phi) a_1 gen in
+      let++ { a = a_2; e = e_2 } = infer_term t gen ctx in
+      { a = a_2; e = (e :: e_1) @ e_2 }
 (*
 | Unit
 | Named of string
@@ -147,7 +168,7 @@ let rec infer_term (t : Types.term) (gen : generator) (ctx : context) :
 *)
 and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
     infered myresult =
-  a
+  match omega with Pairs p -> asdf
 
 let rec invert_iso_type : Types.iso_type -> Types.iso_type = function
   | BiArrow { a; b } -> BiArrow { a = b; b = a }

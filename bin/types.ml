@@ -19,9 +19,9 @@ type expr =
   | Let of { p_1 : pat; omega : iso; p_2 : pat; e : expr }
 
 and iso =
-  | Pairs of { annot : iso_type; pairs : (value * expr) list }
-  | Fix of { phi : string; annot : iso_type; omega : iso }
-  | Lambda of { psi : string; annot : iso_type; omega : iso }
+  | Pairs of (value * expr) list
+  | Fix of { phi : string; omega : iso }
+  | Lambda of { psi : string; omega : iso }
   | Named of string
   | App of { omega_1 : iso; omega_2 : iso }
   | Invert of iso
@@ -75,10 +75,9 @@ let rec contains_value (what : string) : value -> bool = function
 let contains_pairs (what : string) (pairs : (value * expr) list) : bool =
   List.exists (fun (v, _) -> contains_value what v) pairs
 
-let rec lambdas_of_params : (string * iso_type) list -> iso -> iso = function
+let rec lambdas_of_params : string list -> iso -> iso = function
   | [] -> fun omega -> omega
-  | (psi, annot) :: tl ->
-      fun omega -> Lambda { psi; annot; omega = lambdas_of_params tl omega }
+  | psi :: tl -> fun omega -> Lambda { psi; omega = lambdas_of_params tl omega }
 
 let rec show_base_type : base_type -> string = function
   | Unit -> "()"
@@ -123,7 +122,7 @@ and show_pairs (pairs : (value * expr) list) : string =
   ^ "\n}"
 
 and show_iso : iso -> string = function
-  | Pairs { pairs; _ } -> show_pairs pairs
+  | Pairs p -> show_pairs p
   | Fix { phi; omega; _ } -> "fix " ^ phi ^ ". " ^ show_iso omega
   | Lambda { psi; omega; _ } -> "\\" ^ psi ^ ". " ^ show_iso omega
   | Named omega -> omega
