@@ -1,4 +1,8 @@
-type base_type = Unit | Product of base_type list | Named of string
+type base_type =
+  | Unit
+  | Product of base_type list
+  | Named of string
+  | Var of int
 
 type iso_type =
   | BiArrow of { a : base_type; b : base_type }

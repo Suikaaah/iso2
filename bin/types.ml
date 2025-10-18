@@ -1,6 +1,10 @@
 open Util
 
-type base_type = Unit | Product of base_type list | Named of string
+type base_type =
+  | Unit
+  | Product of base_type list
+  | Named of string
+  | Var of int
 
 type iso_type =
   | BiArrow of { a : base_type; b : base_type }
@@ -84,6 +88,7 @@ let rec show_base_type : base_type -> string = function
   | Product (hd :: tl) -> show_list show_base_type hd tl
   | Product _ -> "unreachable"
   | Named x -> x
+  | Var x -> "'" ^ string_of_int x
 
 let rec show_iso_type : iso_type -> string = function
   | BiArrow { a; b } -> show_base_type a ^ " <-> " ^ show_base_type b
