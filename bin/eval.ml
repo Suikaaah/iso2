@@ -1,15 +1,9 @@
 open Types
 open Util
-open Inference
 
-type psi = iso_type StrMap.t
-
-(* keeping annotation correct just in case *)
-
-let rec invert (psi : psi) (omega : iso) : iso =
-  let invert = invert psi in
+let rec invert (omega : iso) : iso =
   match omega with
-  | Pairs { annot; pairs } ->
+  | Pairs p ->
       let rec invert_expr (e : expr) (acc : expr) =
         match e with
         | Value v -> (v, acc)
@@ -18,20 +12,14 @@ let rec invert (psi : psi) (omega : iso) : iso =
               (Let { p_1 = p_2; omega = invert omega; p_2 = p_1; e = acc })
       in
       let invert_pair (v, e) = invert_expr e (Value v) in
-      Pairs
-        { annot = invert_iso_type annot; pairs = List.map invert_pair pairs }
-  | Fix { phi; annot; omega } ->
-      Fix { phi; annot = invert_iso_type annot; omega = invert omega }
-  | Lambda { psi; annot; omega } ->
-      Lambda { psi; annot = invert_iso_type annot; omega = invert omega }
+      Pairs (List.map invert_pair p)
+  | Fix { phi; omega } -> Fix { phi; omega = invert omega }
+  | Lambda { psi; omega } -> Lambda { psi; omega = invert omega }
   | Named x (* fix i guess *) when is_variable x -> omega
   | Named x (* constructor *) -> begin
-      match StrMap.find x psi with
-      | BiArrow _ as t ->
-          let vr : value = Named "x" in
-          let vl = Cted { c = x; v = vr } in
-          Pairs { annot = invert_iso_type t; pairs = [ (vl, Value vr) ] }
-      | Arrow _ -> failwith "unreachable (arrow constructor)"
+      let vr : value = Named "x" in
+      let vl = Cted { c = x; v = vr } in
+      Pairs [ (vl, Value vr) ]
     end
   | App { omega_1; omega_2 } ->
       App { omega_1 = invert omega_1; omega_2 = invert omega_2 }
@@ -61,17 +49,14 @@ let rec subst ~(from : string) ~(into : term) ~(what : term) : term =
 let rec subst_iso ~(from : string) ~(into : iso) ~(what : iso) : iso =
   let subst_iso what = subst_iso ~from ~into ~what in
   match what with
-  | Pairs { annot; pairs } when not (contains_pairs from pairs) ->
+  | Pairs p when not (contains_pairs from p) ->
       let pairs =
-        List.map
-          (fun (v, e) -> (v, subst_iso_in_expr ~from ~into ~what:e))
-          pairs
+        List.map (fun (v, e) -> (v, subst_iso_in_expr ~from ~into ~what:e)) p
       in
-      Pairs { annot; pairs }
-  | Fix { phi; annot; omega } when phi <> from ->
-      Fix { phi; annot; omega = subst_iso omega }
-  | Lambda { psi; annot; omega } when psi <> from ->
-      Lambda { psi; annot; omega = subst_iso omega }
+      Pairs pairs
+  | Fix { phi; omega } when phi <> from -> Fix { phi; omega = subst_iso omega }
+  | Lambda { psi; omega } when psi <> from ->
+      Lambda { psi; omega = subst_iso omega }
   | Named x when x = from -> into
   | App { omega_1; omega_2 } ->
       App { omega_1 = subst_iso omega_1; omega_2 = subst_iso omega_2 }
@@ -143,21 +128,20 @@ let rec unify_value (u : value) (v : value) : (string * value) list =
       Option.value ~default:[] opt
   | _ -> []
 
-let rec eval (psi : psi) (t : term) : term =
-  let eval = eval psi in
+let rec eval (t : term) : term =
   match t with
   | Tuple l -> Tuple (List.map eval l)
   | App { omega; t = u } -> begin
-      let omega = eval_iso psi omega in
+      let omega = eval_iso omega in
       let v' = eval u |> value_of_term in
       match omega with
-      | Pairs { pairs; _ } ->
+      | Pairs p ->
           let v, e =
-            match match_pair pairs v' with
+            match match_pair p v' with
             | Some pair -> pair
             | None ->
                 "no matching pair found: " ^ show_value v' ^ " |> "
-                ^ show_pairs pairs
+                ^ show_pairs p
                 |> failwith
           in
           let unified = unify_value v v' in
@@ -177,12 +161,11 @@ let rec eval (psi : psi) (t : term) : term =
       |> eval
     end
   | LetIso { phi; omega; t } ->
-      let omega = eval_iso psi omega in
+      let omega = eval_iso omega in
       subst_iso_in_term ~from:phi ~into:omega ~what:t |> eval
   | _ -> t
 
-and eval_iso (psi : psi) (omega : iso) : iso =
-  let eval_iso = eval_iso psi in
+and eval_iso (omega : iso) : iso =
   match omega with
   | Fix { phi; omega = omega'; _ } ->
       subst_iso ~from:phi ~into:omega ~what:omega' |> eval_iso
@@ -192,5 +175,5 @@ and eval_iso (psi : psi) (omega : iso) : iso =
           subst_iso ~from:psi ~into:omega_2 ~what:omega |> eval_iso
       | _ -> omega
     end
-  | Invert omega -> eval_iso omega |> invert psi |> eval_iso
+  | Invert omega -> eval_iso omega |> eval_iso
   | _ -> omega

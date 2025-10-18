@@ -32,7 +32,7 @@ let is_variable (value : string) : bool =
   let first = String.get value 0 |> Char.code in
   Char.code 'a' <= first && first <= Char.code 'z'
 
-let is_infix : string -> bool = String.starts_with ~prefix:"`"
+let is_type_variable : string -> bool = String.starts_with ~prefix:"'"
 
 let rec for_all_pairs (f : 'a -> 'a -> 'b option) : 'a list -> 'b option =
   function
@@ -56,8 +56,8 @@ let union ~(weak : 'a StrMap.t) ~(strong : 'a StrMap.t) : 'a StrMap.t =
   let merger _ _ y = Some y in
   StrMap.union merger weak strong
 
-let union_list : 'a StrMap.t list -> 'a StrMap.t =
-  List.fold_left (fun weak strong -> union ~weak ~strong) StrMap.empty
+let union_list (l : 'a StrMap.t list) : 'a StrMap.t =
+  List.fold_left (fun weak strong -> union ~weak ~strong) StrMap.empty l
 
 let show_list (f : 'a -> string) (hd : 'a) (tl : 'a list) : string =
   let init = "(" ^ f hd in

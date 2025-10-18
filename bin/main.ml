@@ -13,11 +13,17 @@ let () =
   | Error e -> report "Syntax Error" e |> print_string
   | Ok program ->
       let { t; ts } = program in
-      let ctx = build_ctx ts in
+      let gen = { i = 0 } in
+      let ctx = build_ctx gen ts in
+      let infered = Result.bind (infer_term t gen ctx) finalize in
       begin
-        match infer_base ctx t with
-        | Ok _ -> begin
-            try Eval.eval ctx.psi t |> show_term |> print_endline
+        match infered with
+        | Ok a -> begin
+            try
+              Eval.eval t |> show_term |> print_endline;
+              print_string ": ";
+              a |> base_of_any |> Result.get_ok |> show_base_type
+              |> print_endline
             with Failure e -> report "Runtime Error" e |> print_endline
           end
         | Error e -> report "Error" e |> print_endline

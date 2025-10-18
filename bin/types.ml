@@ -9,6 +9,7 @@ type base_type =
 type iso_type =
   | BiArrow of { a : base_type; b : base_type }
   | Arrow of { t_1 : iso_type; t_2 : iso_type }
+  | Var of int
 
 type value =
   | Unit
@@ -94,14 +95,11 @@ let rec show_iso_type : iso_type -> string = function
   | BiArrow { a; b } -> show_base_type a ^ " <-> " ^ show_base_type b
   | Arrow { t_1; t_2 } ->
       "(" ^ show_iso_type t_1 ^ ") -> (" ^ show_iso_type t_2 ^ ")"
+  | Var x -> "'" ^ string_of_int x
 
 let rec show_value : value -> string = function
   | Unit -> "()"
   | Named x -> x
-  | Cted { c; v = Tuple [ (Cted _ as v_1); v_2 ] } when is_infix c ->
-      "(" ^ show_value v_1 ^ ") " ^ c ^ " " ^ show_value v_2
-  | Cted { c; v = Tuple [ v_1; v_2 ] } when is_infix c ->
-      show_value v_1 ^ " " ^ c ^ " " ^ show_value v_2
   | Cted { c; v } -> c ^ " " ^ show_value v
   | Tuple (hd :: tl) -> show_list show_value hd tl
   | Tuple _ -> "unreachable"
@@ -141,15 +139,6 @@ let rec show_term : term -> string = function
   | Named x -> x
   | Tuple (hd :: tl) -> show_list show_term hd tl
   | Tuple _ -> "unreachable"
-  | App
-      {
-        omega = Named x;
-        t = Tuple [ ((App _ | Let _ | LetIso _) as t_1); t_2 ];
-      }
-    when is_infix x ->
-      "(" ^ show_term t_1 ^ ") " ^ x ^ " " ^ show_term t_2
-  | App { omega = Named x; t = Tuple [ t_1; t_2 ] } when is_infix x ->
-      show_term t_1 ^ " " ^ x ^ " " ^ show_term t_2
   | App { omega = (Pairs _ | Named _) as omega; t } ->
       show_iso omega ^ " " ^ show_term t
   | App { omega; t } -> "{" ^ show_iso omega ^ "} " ^ show_term t

@@ -34,7 +34,7 @@ rule token = parse
   | string
     {
       let x = lexeme lexbuf in
-      if Util.is_infix x then INFIX x
+      if Util.is_type_variable x then TVAR (int_of_string x)
       else if Util.is_variable x then VAR x
       else CTOR x
     }

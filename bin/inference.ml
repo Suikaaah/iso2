@@ -7,11 +7,16 @@ type any =
   | BiArrow of { a : any; b : any }
   | Arrow of { a : any; b : any }
   | Var of int
+[@@deriving show { with_path = false }]
 
 type equation = any * any
 type subst = { what : int; into : any }
+type infered_pair = { a_v : any; a_e : any; e : equation list }
 type infered = { a : any; e : equation list }
+
 type elt = Mono of any | Scheme of { forall : int list; a : any }
+[@@deriving show { with_path = false }]
+
 type context = elt StrMap.t
 type generator = { mutable i : int }
 
@@ -72,7 +77,7 @@ let rec unify : equation list -> subst list myresult = function
           (a_1, a_2) :: (b_1, b_2) :: e' |> unify
       | Arrow { a = a_1; b = b_1 }, Arrow { a = a_2; b = b_2 } ->
           (a_1, a_2) :: (b_1, b_2) :: e' |> unify
-      | _ -> Error "unable to unify"
+      | a, b -> Error ("unable to unify " ^ show_any a ^ " and " ^ show_any b)
     end
 
 let rec context_of_pat (gen : generator) (p : Types.pat) : any * any StrMap.t =
@@ -98,7 +103,7 @@ let find_generalizable (a : any) (ctx : context) : int list =
         IntSet.union (find_in_any a) (find_in_any b)
     | Var x -> IntSet.singleton x
   in
-  let rec find_in_context ctx =
+  let find_in_context ctx =
     let f = function
       | Mono a -> find_in_any a
       | Scheme { forall; a } ->
@@ -115,12 +120,39 @@ let generalize (e : equation list) (ctx : context) (p : Types.pat) (a : any)
   let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
   let product, binds = context_of_pat gen p in
   let generalized =
-    let forall = find_generalizable u ctx in
-    StrMap.map (fun a -> Scheme { forall; a }) binds
+    StrMap.map
+      (fun a ->
+        let forall = find_generalizable a ctx in
+        Scheme { forall; a })
+      binds
   in
   (union ~weak:ctx ~strong:generalized, (u, product))
 
-let rec infer_term (t : Types.term) (gen : generator) (ctx : context) :
+let rec extract_named (gen : generator) (v : Types.value) : context =
+  match v with
+  | Named x when is_variable x ->
+      let var = Var (fresh gen) in
+      StrMap.singleton x (Mono var)
+  | Unit | Named _ -> StrMap.empty
+  | Cted { v; _ } -> extract_named gen v
+  | Tuple l -> union_list (List.map (extract_named gen) l)
+
+let rec invert_iso_type : any -> any myresult = function
+  | BiArrow { a; b } -> Ok (BiArrow { a = b; b = a })
+  | Arrow { a; b } ->
+      let** a = invert_iso_type a in
+      let++ b = invert_iso_type b in
+      Arrow { a; b }
+  | _ -> Error "it ain't an iso bro"
+
+let rec infer_pair (gen : generator) (ctx : context)
+    ((v, e) : Types.value * Types.expr) : infered_pair myresult =
+  let ctx = union ~weak:ctx ~strong:(extract_named gen v) in
+  let** { a = a_v; e = e_v } = infer_term (Types.term_of_value v) gen ctx in
+  let++ { a = a_e; e = e_e } = infer_expr e gen ctx in
+  { a_v; a_e; e = e_v @ e_e }
+
+and infer_term (t : Types.term) (gen : generator) (ctx : context) :
     infered myresult =
   match t with
   | Unit -> Ok { a = Unit; e = [] }
@@ -149,33 +181,108 @@ let rec infer_term (t : Types.term) (gen : generator) (ctx : context) :
       let** ctx, e = generalize e_1 ctx (Types.Named phi) a_1 gen in
       let++ { a = a_2; e = e_2 } = infer_term t gen ctx in
       { a = a_2; e = (e :: e_1) @ e_2 }
-(*
-| Unit
-| Named of string
-| Tuple of term list
-| App of { omega : iso; t : term }
-| Let of { p : pat; t_1 : term; t_2 : term }
-| LetIso of { phi : string; omega : iso; t : term }
-*)
 
-(*
-| Pairs of { annot : iso_type; pairs : (value * expr) list }
-| Fix of { phi : string; annot : iso_type; omega : iso }
-| Lambda of { psi : string; annot : iso_type; omega : iso }
-| Named of string
-| App of { omega_1 : iso; omega_2 : iso }
-| Invert of iso
-*)
+and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
+    infered myresult =
+  match expr with
+  | Value v -> infer_term (Types.term_of_value v) gen ctx
+  | Let { p_1; omega; p_2; e = expr } ->
+      let t_1 = Types.App { omega; t = Types.term_of_pat p_2 } in
+      let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
+      let** ctx, e = generalize e_1 ctx p_1 a_1 gen in
+      let++ { a = a_2; e = e_2 } = infer_expr expr gen ctx in
+      { a = a_2; e = (e :: e_1) @ e_2 }
+
 and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
     infered myresult =
-  match omega with Pairs p -> asdf
+  match omega with
+  | Pairs p ->
+      let++ pairs = List.map (infer_pair gen ctx) p |> bind_all in
+      let types_v, types_e =
+        List.map (fun { a_v; a_e; _ } -> (a_v, a_e)) pairs |> List.split
+      in
+      let es =
+        List.map (fun ({ e; _ } : infered_pair) -> e) pairs |> List.flatten
+      in
+      let a = Var (fresh gen) in
+      let b = List.hd types_e in
+      let types_v' = List.drop 1 types_v @ [ a ] in
+      let types_e' = List.drop 1 types_e @ [ b ] in
+      let e_v = List.map2 (fun a b -> (a, b)) types_v types_v' in
+      let e_e = List.map2 (fun a b -> (a, b)) types_e types_e' in
+      { a = BiArrow { a; b }; e = e_v @ e_e @ es }
+  | Fix { phi; omega } ->
+      let fresh = Var (fresh gen) in
+      let ctx = StrMap.add phi (Mono fresh) ctx in
+      let++ { a; e } = infer_iso omega gen ctx in
+      { a; e = (fresh, a) :: e }
+  | Lambda { psi; omega } ->
+      let fresh = Var (fresh gen) in
+      let ctx = StrMap.add psi (Mono fresh) ctx in
+      let++ { a; e } = infer_iso omega gen ctx in
+      { a = Arrow { a = fresh; b = a }; e }
+  | Named omega ->
+      let++ elt = find_res omega ctx in
+      { a = instantiate gen elt; e = [] }
+  | App { omega_1; omega_2 } ->
+      let** { a = a_1; e = e_1 } = infer_iso omega_1 gen ctx in
+      let++ { a = a_2; e = e_2 } = infer_iso omega_2 gen ctx in
+      let e = e_1 @ e_2 in
+      let fresh = Var (fresh gen) in
+      { a = fresh; e = (a_1, Arrow { a = a_2; b = fresh }) :: e }
+  | Invert omega ->
+      let** { a; e } = infer_iso omega gen ctx in
+      let++ a = invert_iso_type a in
+      { a; e }
 
-let rec invert_iso_type : Types.iso_type -> Types.iso_type = function
-  | BiArrow { a; b } -> BiArrow { a = b; b = a }
-  | Arrow { t_1; t_2 } ->
-      let t_1 = invert_iso_type t_1 in
-      let t_2 = invert_iso_type t_2 in
-      Arrow { t_1; t_2 }
+let rec any_of_base : Types.base_type -> any = function
+  | Unit -> Unit
+  | Product l -> Product (List.map any_of_base l)
+  | Named x -> Named x
+  | Var x -> Var x
+
+let rec base_of_any : any -> Types.base_type myresult = function
+  | Unit -> Ok Types.Unit
+  | Product l ->
+      let++ l = List.map base_of_any l |> bind_all in
+      Types.Product l
+  | Named x -> Ok (Types.Named x)
+  | Var x -> Ok (Types.Var x)
+  | _ -> Error "this ain't a base type"
+
+let rec iso_of_any : any -> Types.iso_type myresult = function
+  | BiArrow { a; b } ->
+      let** a = base_of_any a in
+      let++ b = base_of_any b in
+      Types.BiArrow { a; b }
+  | Arrow { a; b } ->
+      let** t_1 = iso_of_any a in
+      let++ t_2 = iso_of_any b in
+      Types.Arrow { t_1; t_2 }
+  | Var x -> Ok (Types.Var x)
+  | _ -> Error "this ain't an iso type"
+
+let build_ctx (_gen : generator) (defs : Types.typedef list) : context =
+  let build Types.{ t; vs } =
+    let f ctx v =
+      match v with
+      (* todo: scheme *)
+      | Types.Value x ->
+          let inner = Named t in
+          (x, Mono inner) :: ctx
+      | Types.Iso { c; a } ->
+          let inner = BiArrow { a = any_of_base a; b = Named t } in
+          (c, Mono inner) :: ctx
+    in
+    List.fold_left f [] vs
+  in
+  List.fold_left (fun acc x -> acc @ build x) [] defs |> StrMap.of_list
+
+let finalize ({ a; e } : infered) : any myresult =
+  List.iter (fun (a, b) -> show_any a ^ " = " ^ show_any b |> print_endline) e;
+  let++ substs = unify e in
+  List.fold_left (fun a s -> subst s a) a substs
+
 (*
 let rec is_orthogonal (u : value) (v : value) : string option =
   let msg =
@@ -197,55 +304,6 @@ let rec is_orthogonal (u : value) (v : value) : string option =
   | _ -> None
 
 
-let rec unify_value (ctx : context) (v : value) (a : base_type) : delta myresult
-    =
-  let msg = lazy (show_value v ^ " with type " ^ show_base_type a) in
-  match (v, a) with
-  | Unit, Unit -> Ok StrMap.empty
-  | Named x, _ when is_variable x -> Ok (StrMap.singleton x a)
-  | Named x, _ ->
-      let** b =
-        StrMap.find_opt x ctx.delta
-        |> Option.to_result
-             ~none:(x ^ " was not found in the context of base_type")
-      in
-      if a = b then Ok StrMap.empty
-      else
-        Error
-          (x ^ " is expected to have type " ^ show_base_type a
-         ^ " but it has type " ^ show_base_type b)
-  | Cted { c; v }, b' -> begin
-      let** omega =
-        StrMap.find_opt c ctx.psi
-        |> Option.to_result
-             ~none:(c ^ " was not found in the context of iso_type")
-      in
-      match omega with
-      | BiArrow { a; b } ->
-          if b = b' then unify_value ctx v a
-          else
-            Error
-              (c ^ " is expected to have type _ <-> " ^ show_base_type b'
-             ^ " but it has type " ^ show_base_type a ^ " <-> "
-             ^ show_base_type b)
-      | Arrow _ ->
-          Error
-            (c ^ " is expected to have type _ <-> " ^ show_base_type b'
-           ^ " but it has type " ^ show_iso_type omega)
-    end
-  | Tuple t, Product p ->
-      let** combined =
-        combine t p
-        |> Option.to_result ~none:("arity mismatch: " ^ Lazy.force msg)
-      in
-      let** list =
-        List.map (fun (v, a) -> unify_value ctx v a) combined |> bind_all
-      in
-      List.fold_left
-        (fun acc delta -> Result.bind acc (fun acc -> union_nodup acc delta))
-        (Ok StrMap.empty) list
-  | _ -> Error ("unable to unify " ^ Lazy.force msg)
-
 let invert_pairs (pairs : (value * expr) list) : (value * expr) list =
   let rec invert_expr (e : expr) (acc : expr) =
     match e with
@@ -256,177 +314,4 @@ let invert_pairs (pairs : (value * expr) list) : (value * expr) list =
   in
   let invert_pair (v, e) = invert_expr e (Value v) in
   List.map invert_pair pairs
-
-let rec unify_pat (p : pat) (a : base_type) : base_type StrMap.t myresult =
-  let msg = lazy (show_pat p ^ " and type " ^ show_base_type a) in
-  match (p, a) with
-  | Named x, _ -> Ok (StrMap.singleton x a)
-  | Tuple tpl, Product prd ->
-      let** combined =
-        combine tpl prd
-        |> Option.to_result ~none:("arity mismatch: " ^ Lazy.force msg)
-      in
-      let** list =
-        List.map (fun (p, a) -> unify_pat p a) combined |> bind_all
-      in
-      List.fold_left
-        (fun acc delta -> Result.bind acc (fun acc -> union_nodup acc delta))
-        (Ok StrMap.empty) list
-  | _ -> Error ("unable to unify " ^ Lazy.force msg)
-
-let rec infer_base_in_expr (ctx : context) (e : expr) : base_type myresult =
-  match e with
-  | Value v -> infer_base ctx (term_of_value v)
-  | Let { p_1; omega; e; _ } ->
-      let** omega' = infer_iso ctx omega in
-      let** b =
-        match omega' with
-        | BiArrow { b; _ } -> Ok b
-        | Arrow _ ->
-            Error
-              (show_iso omega
-             ^ " is expected to have type _ <-> _ but it has type "
-             ^ show_iso_type omega')
-      in
-      let** unified = unify_pat p_1 b in
-      let extended = union ~weak:ctx.delta ~strong:unified in
-      infer_base_in_expr { psi = ctx.psi; delta = extended } e
-
-and infer_base (ctx : context) (t : term) : base_type myresult =
-  match t with
-  | Unit -> Ok Unit
-  | Named x ->
-      StrMap.find_opt x ctx.delta
-      |> Option.to_result
-           ~none:(x ^ " was not found in the context of base_type")
-  | Tuple l ->
-      let++ l = List.map (infer_base ctx) l |> bind_all in
-      Product l
-  | App { omega; t } -> begin
-      let** omega' = infer_iso ctx omega in
-      let** t = infer_base ctx t in
-      match omega' with
-      | BiArrow { a; b } ->
-          if a = t then Ok b
-          else
-            Error
-              (show_iso omega ^ " is expected to have type " ^ show_base_type t
-             ^ " <-> _ but it has type " ^ show_base_type a ^ " <-> "
-             ^ show_base_type b)
-      | Arrow _ ->
-          Error
-            (show_iso omega ^ " is expected to have type " ^ show_base_type t
-           ^ " <-> _ but it has type " ^ show_iso_type omega')
-    end
-  | Let { p; t_1; t_2 } ->
-      let** a = infer_base ctx t_1 in
-      let** unified = unify_pat p a in
-      let extended = union ~weak:ctx.delta ~strong:unified in
-      infer_base { psi = ctx.psi; delta = extended } t_2
-  | LetIso { phi; omega; t } ->
-      let** omega = infer_iso ctx omega in
-      let extended = StrMap.add phi omega ctx.psi in
-      infer_base { psi = extended; delta = ctx.delta } t
-
-and infer_iso (ctx : context) (omega : iso) : iso_type myresult =
-  match omega with
-  | Pairs { annot = BiArrow { a; b }; pairs } ->
-      let infer_pairs a b pairs =
-        let well_typed (v, e) =
-          let infered =
-            let** unified = unify_value ctx v a in
-            let extended = union ~weak:ctx.delta ~strong:unified in
-            infer_base_in_expr { psi = ctx.psi; delta = extended } e
-          in
-          match infered with
-          | Ok b' ->
-              if b' = b then None
-              else
-                Some
-                  (show_expr e ^ " is expected to have type " ^ show_base_type b
-                 ^ " but it has type " ^ show_base_type b')
-          | Error e -> Some e
-        in
-        match List.find_map well_typed pairs with
-        | Some x -> Error x
-        | None -> (
-            let is_orthogonal_v =
-              List.map (fun (v, _) -> v) pairs |> for_all_pairs is_orthogonal
-            in
-            let is_orthogonal_e =
-              List.map (fun (_, e) -> value_of_expr e) pairs
-              |> for_all_pairs is_orthogonal
-            in
-            match (is_orthogonal_e, is_orthogonal_v) with
-            | Some e, _ | _, Some e -> Error e
-            | None, None -> Ok (BiArrow { a; b }))
-      in
-      let inverted = invert_pairs pairs in
-      let** _ =
-        infer_pairs b a inverted
-        |> Result.map_error (fun e ->
-               e ^ "\nin inverted pairs: " ^ show_pairs inverted)
-      in
-      infer_pairs a b pairs
-  | Pairs _ -> Error "unreachable (Pairs have non-biarrow type)"
-  | Fix { phi; annot; omega = omega' } ->
-      let extended = extend ctx.psi [ (phi, annot) ] in
-      let** omega = infer_iso { psi = extended; delta = ctx.delta } omega' in
-      if omega = annot then Ok annot
-      else
-        Error
-          (show_iso omega' ^ " is expected to have type " ^ show_iso_type annot
-         ^ " but it has type " ^ show_iso_type omega)
-  | Lambda { psi; annot; omega } ->
-      let extended = extend ctx.psi [ (psi, annot) ] in
-      let++ t_2 = infer_iso { psi = extended; delta = ctx.delta } omega in
-      Arrow { t_1 = annot; t_2 }
-  | Named x ->
-      StrMap.find_opt x ctx.psi
-      |> Option.to_result ~none:(x ^ " was not found in the context of iso_type")
-  | App { omega_1; omega_2 } -> begin
-      let** omega_1' = infer_iso ctx omega_1 in
-      let** omega_2' = infer_iso ctx omega_2 in
-      match omega_1' with
-      | Arrow { t_1; t_2 } ->
-          if t_1 = omega_2' then Ok t_2
-          else
-            Error
-              (show_iso omega_1 ^ " is expected to have type "
-             ^ show_iso_type omega_2' ^ " -> _ but it has type "
-             ^ show_iso_type t_1 ^ " -> " ^ show_iso_type t_2)
-      | BiArrow _ ->
-          Error
-            (show_iso omega_1
-           ^ " is expected to have type _ -> _ but it has type "
-           ^ show_iso_type omega_1')
-    end
-  | Invert omega -> Result.map invert_iso_type (infer_iso ctx omega)
-
-let build_ctx (defs : typedef list) : context =
-  let module Local = struct
-    type lctx = {
-      psi : (string * iso_type) list;
-      delta : (string * base_type) list;
-    }
-
-    let empty_lctx = { psi = []; delta = [] }
-
-    let append { psi = psi_1; delta = delta_1 } { psi = psi_2; delta = delta_2 }
-        =
-      { psi = psi_1 @ psi_2; delta = delta_1 @ delta_2 }
-  end in
-  let open Local in
-  let build_lctx { t; vs } =
-    let f { psi; delta } v =
-      match v with
-      | Value x -> { psi; delta = (x, Named t) :: delta }
-      | Iso { c; a } -> { psi = (c, BiArrow { a; b = Named t }) :: psi; delta }
-    in
-    List.fold_left f empty_lctx vs
-  in
-  let { psi; delta } =
-    List.fold_left (fun acc x -> append acc (build_lctx x)) empty_lctx defs
-  in
-  { psi = StrMap.of_list psi; delta = StrMap.of_list delta }
 *)
