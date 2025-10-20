@@ -1,7 +1,7 @@
 type nat = 0 | S of nat
 
 (* add (x, y) = (x + y, y) *)
-let rec add : (nat, nat) <-> (nat, nat) =
+let rec add = function
   | (m, S n) <->
       let m = S m in
       let (m, n) = add (m, n) in

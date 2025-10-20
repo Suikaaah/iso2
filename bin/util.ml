@@ -59,9 +59,13 @@ let union ~(weak : 'a StrMap.t) ~(strong : 'a StrMap.t) : 'a StrMap.t =
 let union_list (l : 'a StrMap.t list) : 'a StrMap.t =
   List.fold_left (fun weak strong -> union ~weak ~strong) StrMap.empty l
 
-let show_list (f : 'a -> string) (hd : 'a) (tl : 'a list) : string =
+let show_tuple (f : 'a -> string) (hd : 'a) (tl : 'a list) : string =
   let init = "(" ^ f hd in
   List.fold_left (fun acc a -> acc ^ ", " ^ f a) init tl ^ ")"
+
+let show_list (f : 'a -> string) (hd : 'a) (tl : 'a list) : string =
+  let init = "[" ^ f hd in
+  List.fold_left (fun acc a -> acc ^ "; " ^ f a) init tl ^ "]"
 
 let boldred (value : string) : string = "\x1b[1;31m" ^ value ^ "\x1b[0m"
 

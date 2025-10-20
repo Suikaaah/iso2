@@ -8,11 +8,8 @@ open Types
 %token LBRACE
 %token RBRACE
 %token PIPE
-%token BACKSLASH
 %token DOT
 %token COMMA
-%token COLON
-%token TRIANGLE
 %token ARROW
 %token BIARROW
 %token EQUAL
@@ -24,13 +21,16 @@ open Types
 %token INVERT
 %token REC
 %token OF
+%token FUNCTION
+%token FUN
+%token MATCH
+%token WITH
 %token <int> TVAR
 %token <string> VAR
 %token <string> CTOR
 
 %start <program> program
 %type <base_type> base_type
-%type <iso_type> iso_type
 %type <value> value
 %type <pat> pat
 %type <expr> expr
@@ -40,7 +40,6 @@ open Types
 %type <typedef> typedef
 %type <value * expr> biarrowed
 %type <string> param
-%right ARROW
 %%
 
 wtf(separator, X):
@@ -62,11 +61,6 @@ base_type:
   | LPAREN; ts = wtf(COMMA, base_type) RPAREN; { Product ts }
   | x = VAR; { Named x }
 
-iso_type:
-  | LPAREN; t = iso_type; RPAREN; { t }
-  | a = base_type; BIARROW; b = base_type; { BiArrow { a; b } }
-  | t_1 = iso_type; ARROW; t_2 = iso_type; { Arrow { t_1; t_2 } }
-
 value:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; v = value; RPAREN; { v }
@@ -82,22 +76,27 @@ pat:
 expr:
   | v = value; { Value v }
   | LET; p_1 = pat; EQUAL; omega = iso; p_2 = pat; IN; e = expr; { Let { p_1; omega; p_2; e } }
+  | LET; p_1 = pat; EQUAL; MATCH; p_2 = pat; WITH;
+    PIPE?; p = separated_nonempty_list(PIPE, biarrowed); IN; e = expr;
+    {
+      Let { p_1; omega = Pairs p; p_2; e }
+    }
 
 biarrowed:
   | v = value; BIARROW; e = expr; { (v, e) }
 
+param:
+  | phi = VAR; { phi }
+
 iso:
   | LBRACE; omega = iso; RBRACE; { omega }
-  | ISO; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
+  | FUNCTION; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
   | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
-  | BACKSLASH; psi = VAR; DOT; omega = iso; { Lambda { psi; omega } }
+  | FUN; params = param+; ARROW; omega = iso; { lambdas_of_params params omega }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
   | omega_1 = iso; omega_2 = iso; { App { omega_1; omega_2 } }
   | INVERT; omega = iso; { Invert omega }
-
-param:
-  | phi = VAR; { phi }
 
 term:
   | LPAREN; RPAREN; { Unit }
@@ -106,6 +105,9 @@ term:
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
   | omega = iso; t = term; { App { omega; t } }
+  | MATCH; t = term; WITH; PIPE?; p = separated_nonempty_list(PIPE, biarrowed);
+    { App { omega = Pairs p; t } }
+
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
   | LET; ISO; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
     { LetIso { phi; omega = lambdas_of_params params omega; t } }

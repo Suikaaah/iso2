@@ -1,3 +1,6 @@
-let iso id = iso x <-> x in
+type a = A
+type b = B
 
-id ()
+let (a, b) = (A, B) in
+
+(a, b)

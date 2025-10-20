@@ -7,18 +7,44 @@ type any =
   | BiArrow of { a : any; b : any }
   | Arrow of { a : any; b : any }
   | Var of int
-[@@deriving show { with_path = false }]
 
 type equation = any * any
 type subst = { what : int; into : any }
-type infered_pair = { a_v : any; a_e : any; e : equation list }
-type infered = { a : any; e : equation list }
-
+type inferred_pair = { a_v : any; a_e : any; e : equation list }
+type inferred = { a : any; e : equation list }
 type elt = Mono of any | Scheme of { forall : int list; a : any }
-[@@deriving show { with_path = false }]
-
 type context = elt StrMap.t
 type generator = { mutable i : int }
+
+let rec show_any : any -> string = function
+  | Unit -> "()"
+  | Product (hd :: tl) -> show_tuple show_any hd tl
+  | Product _ -> "unreachable"
+  | Named x -> x
+  | Var x -> "'" ^ string_of_int x
+  | BiArrow { a; b } -> show_any a ^ " <-> " ^ show_any b
+  | Arrow { a; b } -> "(" ^ show_any a ^ ") -> (" ^ show_any b ^ ")"
+
+let show_elt : elt -> string = function
+  | Mono a -> show_any a
+  | Scheme { forall = []; a } -> "forall []. " ^ show_any a
+  | Scheme { forall = hd :: tl; a } ->
+      "forall "
+      ^ show_list (fun x -> "'" ^ string_of_int x) hd tl
+      ^ ". " ^ show_any a
+
+let show_context (ctx : context) : string =
+  let show = function
+    | [] -> "[]"
+    | hd :: tl -> show_list (fun (k, e) -> k ^ " : " ^ show_elt e) hd tl
+  in
+  StrMap.to_list ctx |> show
+
+let show_equation ((a, b) : equation) : string = show_any a ^ " = " ^ show_any b
+
+let show_equations : equation list -> string = function
+  | [] -> "[]"
+  | hd :: tl -> show_list show_equation hd tl
 
 let fresh (gen : generator) : int =
   let i = gen.i in
@@ -80,6 +106,10 @@ let rec unify : equation list -> subst list myresult = function
       | a, b -> Error ("unable to unify " ^ show_any a ^ " and " ^ show_any b)
     end
 
+let finalize ({ a; e } : inferred) : any myresult =
+  let++ substs = unify e in
+  List.fold_left (fun a s -> subst s a) a substs
+
 let rec context_of_pat (gen : generator) (p : Types.pat) : any * any StrMap.t =
   match p with
   | Named x ->
@@ -120,13 +150,18 @@ let generalize (e : equation list) (ctx : context) (p : Types.pat) (a : any)
   let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
   let product, binds = context_of_pat gen p in
   let generalized =
-    StrMap.map
-      (fun a ->
-        let forall = find_generalizable a ctx in
-        Scheme { forall; a })
-      binds
+    let forall = find_generalizable u ctx in
+    StrMap.map (fun a -> Scheme { forall; a }) binds
   in
   (union ~weak:ctx ~strong:generalized, (u, product))
+
+let generalize_iso (e : equation list) (ctx : context) (phi : string) (a : any)
+    : context myresult =
+  let++ substs = unify e in
+  let u = List.fold_left (fun a s -> subst s a) a substs in
+  let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
+  let generalized = Scheme { forall = find_generalizable u ctx; a = u } in
+  StrMap.add phi generalized ctx
 
 let rec extract_named (gen : generator) (v : Types.value) : context =
   match v with
@@ -143,28 +178,27 @@ let rec invert_iso_type : any -> any myresult = function
       let** a = invert_iso_type a in
       let++ b = invert_iso_type b in
       Arrow { a; b }
-  | _ -> Error "it ain't an iso bro"
+  | otherwise -> Error (show_any otherwise ^ " is not an iso type")
 
 let rec infer_pair (gen : generator) (ctx : context)
-    ((v, e) : Types.value * Types.expr) : infered_pair myresult =
+    ((v, e) : Types.value * Types.expr) : inferred_pair myresult =
   let ctx = union ~weak:ctx ~strong:(extract_named gen v) in
   let** { a = a_v; e = e_v } = infer_term (Types.term_of_value v) gen ctx in
   let++ { a = a_e; e = e_e } = infer_expr e gen ctx in
   { a_v; a_e; e = e_v @ e_e }
 
 and infer_term (t : Types.term) (gen : generator) (ctx : context) :
-    infered myresult =
+    inferred myresult =
   match t with
   | Unit -> Ok { a = Unit; e = [] }
   | Named x ->
       let++ elt = find_res x ctx in
       { a = instantiate gen elt; e = [] }
   | Tuple l ->
-      let++ infered = List.map (fun t -> infer_term t gen ctx) l |> bind_all in
-      let product = List.map (fun { a; _ } -> a) infered in
-      let equations = List.map (fun { e; _ } -> e) infered |> List.flatten in
-      let fresh = Var (fresh gen) in
-      { a = fresh; e = (fresh, Product product) :: equations }
+      let++ inferred = List.map (fun t -> infer_term t gen ctx) l |> bind_all in
+      let product = List.map (fun { a; _ } -> a) inferred in
+      let e = List.map (fun { e; _ } -> e) inferred |> List.flatten in
+      { a = Product product; e }
   | App { omega; t } ->
       let** { a = a_1; e = e_1 } = infer_iso omega gen ctx in
       let++ { a = a_2; e = e_2 } = infer_term t gen ctx in
@@ -178,12 +212,12 @@ and infer_term (t : Types.term) (gen : generator) (ctx : context) :
       { a = a_2; e = (e :: e_1) @ e_2 }
   | LetIso { phi; omega; t } ->
       let** { a = a_1; e = e_1 } = infer_iso omega gen ctx in
-      let** ctx, e = generalize e_1 ctx (Types.Named phi) a_1 gen in
+      let** ctx = generalize_iso e_1 ctx phi a_1 in
       let++ { a = a_2; e = e_2 } = infer_term t gen ctx in
-      { a = a_2; e = (e :: e_1) @ e_2 }
+      { a = a_2; e = e_1 @ e_2 }
 
 and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
-    infered myresult =
+    inferred myresult =
   match expr with
   | Value v -> infer_term (Types.term_of_value v) gen ctx
   | Let { p_1; omega; p_2; e = expr } ->
@@ -194,7 +228,7 @@ and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
       { a = a_2; e = (e :: e_1) @ e_2 }
 
 and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
-    infered myresult =
+    inferred myresult =
   match omega with
   | Pairs p ->
       let++ pairs = List.map (infer_pair gen ctx) p |> bind_all in
@@ -202,9 +236,9 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
         List.map (fun { a_v; a_e; _ } -> (a_v, a_e)) pairs |> List.split
       in
       let es =
-        List.map (fun ({ e; _ } : infered_pair) -> e) pairs |> List.flatten
+        List.map (fun ({ e; _ } : inferred_pair) -> e) pairs |> List.flatten
       in
-      let a = Var (fresh gen) in
+      let a = List.hd types_v in
       let b = List.hd types_e in
       let types_v' = List.drop 1 types_v @ [ a ] in
       let types_e' = List.drop 1 types_e @ [ b ] in
@@ -223,7 +257,8 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
       { a = Arrow { a = fresh; b = a }; e }
   | Named omega ->
       let++ elt = find_res omega ctx in
-      { a = instantiate gen elt; e = [] }
+      let asdf = { a = instantiate gen elt; e = [] } in
+      asdf
   | App { omega_1; omega_2 } ->
       let** { a = a_1; e = e_1 } = infer_iso omega_1 gen ctx in
       let++ { a = a_2; e = e_2 } = infer_iso omega_2 gen ctx in
@@ -277,11 +312,6 @@ let build_ctx (_gen : generator) (defs : Types.typedef list) : context =
     List.fold_left f [] vs
   in
   List.fold_left (fun acc x -> acc @ build x) [] defs |> StrMap.of_list
-
-let finalize ({ a; e } : infered) : any myresult =
-  List.iter (fun (a, b) -> show_any a ^ " = " ^ show_any b |> print_endline) e;
-  let++ substs = unify e in
-  List.fold_left (fun a s -> subst s a) a substs
 
 (*
 let rec is_orthogonal (u : value) (v : value) : string option =

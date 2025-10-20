@@ -86,7 +86,7 @@ let rec lambdas_of_params : string list -> iso -> iso = function
 
 let rec show_base_type : base_type -> string = function
   | Unit -> "()"
-  | Product (hd :: tl) -> show_list show_base_type hd tl
+  | Product (hd :: tl) -> show_tuple show_base_type hd tl
   | Product _ -> "unreachable"
   | Named x -> x
   | Var x -> "'" ^ string_of_int x
@@ -101,12 +101,12 @@ let rec show_value : value -> string = function
   | Unit -> "()"
   | Named x -> x
   | Cted { c; v } -> c ^ " " ^ show_value v
-  | Tuple (hd :: tl) -> show_list show_value hd tl
+  | Tuple (hd :: tl) -> show_tuple show_value hd tl
   | Tuple _ -> "unreachable"
 
 let rec show_pat : pat -> string = function
   | Named x -> x
-  | Tuple (hd :: tl) -> show_list show_pat hd tl
+  | Tuple (hd :: tl) -> show_tuple show_pat hd tl
   | Tuple _ -> "unreachable"
 
 let rec show_expr : expr -> string = function
@@ -137,7 +137,7 @@ and show_iso : iso -> string = function
 let rec show_term : term -> string = function
   | Unit -> "()"
   | Named x -> x
-  | Tuple (hd :: tl) -> show_list show_term hd tl
+  | Tuple (hd :: tl) -> show_tuple show_term hd tl
   | Tuple _ -> "unreachable"
   | App { omega = (Pairs _ | Named _) as omega; t } ->
       show_iso omega ^ " " ^ show_term t

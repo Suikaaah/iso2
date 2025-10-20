@@ -15,11 +15,8 @@ rule token = parse
   | "{" { LBRACE }
   | "}" { RBRACE }
   | "|" { PIPE }
-  | "\\" { BACKSLASH }
   | "." { DOT }
   | "," { COMMA }
-  | ":" { COLON }
-  | "|>" { TRIANGLE }
   | "->" { ARROW }
   | "<->" { BIARROW }
   | "=" { EQUAL }
@@ -31,6 +28,10 @@ rule token = parse
   | "invert" { INVERT }
   | "rec" { REC }
   | "of" { OF }
+  | "function" { FUNCTION }
+  | "fun" { FUN }
+  | "match" { MATCH }
+  | "with" { WITH }
   | string
     {
       let x = lexeme lexbuf in
