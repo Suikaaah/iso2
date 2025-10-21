@@ -1,18 +1,8 @@
-type str = A of str | B of str | C of str | D of str
+type char = A | B | C
 type value =
   | Unit
-  | Named of str
-  | Cted of (str, value)
-  | Tuple of v_list
+  | Named of char list
+  | Cted of char list * value
+  | Tuple of value list
 
-type v_list = VNil | `VCons of (value, v_list)
-
-type expr =
-  | Value of value
-  | Let of (pat, fn, pat, expr)
-
-type pair = `Pair of (value, expr)
-
-type pairs = PNil | `PCons of (pair, pairs)
-
-()
+Tuple [Unit; Named []]

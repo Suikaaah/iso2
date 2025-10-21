@@ -1,23 +1,17 @@
 open Util
 
-type any =
-  | Unit
-  | Product of any list
-  | Named of string
-  | BiArrow of { a : any; b : any }
-  | Arrow of { a : any; b : any }
-  | Var of int
-  | Ctor of any list * string
-  | Inverted of any
-
-type equation = any * any
-type subst = { what : int; into : any }
-type inferred_pair = { a_v : any; a_e : any; e : equation list }
-type inferred = { a : any; e : equation list }
-type elt = Mono of any | Scheme of { forall : int list; a : any }
-type context = elt StrMap.t
+type any
+type equation
+type subst
+type inferred_pair
+type inferred
+type elt
+type context
 type generator = { mutable i : int }
 
+val invert_iso_type : any -> any myresult
+val base_of_any : any -> Types.base_type myresult
+val iso_of_any : any -> Types.iso_type myresult
 val show_any : any -> string
 val show_elt : elt -> string
 val show_context : context -> string
@@ -29,7 +23,6 @@ val subst_in_context : subst -> context -> context
 val subst_in_equations : subst -> equation list -> equation list
 val instantiate : generator -> elt -> any
 val occurs : int -> any -> bool
-val invert_iso_type : any -> any myresult
 val unify : equation list -> subst list myresult
 val finalize : inferred -> any myresult
 
@@ -61,6 +54,4 @@ val infer_term : Types.term -> generator -> context -> inferred myresult
 val infer_expr : Types.expr -> generator -> context -> inferred myresult
 val infer_iso : Types.iso -> generator -> context -> inferred myresult
 val any_of_base : int StrMap.t -> Types.base_type -> any myresult
-val base_of_any : any -> Types.base_type myresult
-val iso_of_any : any -> Types.iso_type myresult
 val build_ctx : generator -> Types.typedef list -> context myresult

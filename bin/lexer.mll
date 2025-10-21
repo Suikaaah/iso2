@@ -5,6 +5,7 @@ open Parser
 
 let white = [' ' '\t' '\r' '\n']+
 let string = [^ '(' ')' '[' ']' '{' '}' '*' '|' '.' ',' ';' ':' '-' '<' '>' '=' ' ' '\t' '\r' '\n']+
+let nat = ['0' '1' '2' '3' '4' '5' '6' '7' '8' '9']+
 
 rule token = parse
   | eof { EOF }
@@ -38,6 +39,7 @@ rule token = parse
   | "fun" { FUN }
   | "match" { MATCH }
   | "with" { WITH }
+  | nat { NAT (lexeme lexbuf |> int_of_string) }
   | string
     {
       let x = lexeme lexbuf in

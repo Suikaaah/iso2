@@ -1,8 +1,3 @@
-type 'a list = Nil | Cons of 'a * 'a list
-
-type a = 0 | 1 | 2
-type b = A | B | C
-
 let rec map f = function
   | h' :: t' <->
       let h = f h' in
@@ -11,12 +6,15 @@ let rec map f = function
   | [] <-> []
 in
 
-let iso f = function
-  | 0 <-> A
-  | 1 <-> B
-  | 2 <-> C
+(* add (x, y) = (x + y, y) *)
+let rec add = function
+  | (m, S n) <->
+      let m = S m in
+      let (m, n) = add (m, n) in
+      (m, S n)
+  | (m, 0) <-> (m, 0)
 in
 
-let result = {map f} [1; 0; 2] in
+let result = {map add} [(2, 3); (5, 3); (10, 10)] in
 
-(result, {invert map f} result)
+(result, {invert map add} result)

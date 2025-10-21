@@ -1,5 +1,10 @@
 let read_program path =
-  let lexbuf = open_in path |> Lexing.from_channel in
+  let read = open_in path |> In_channel.input_all in
+  let stdlib =
+    "type 'a option = None | Some of 'a type 'a list = Nil | Cons of 'a * 'a \
+     list type nat = Zero | S of nat "
+  in
+  let lexbuf = stdlib ^ read |> Lexing.from_string in
   try Ok (Parser.program Lexer.token lexbuf)
   with Parser.Error i -> Error (Messages.message i)
 

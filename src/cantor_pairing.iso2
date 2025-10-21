@@ -1,6 +1,3 @@
-type nat = 0 | S of nat
-type 'a opt = None | Some of 'a
-
 let rec cantor_pairing = function
   | x <->
       let y = match x with
@@ -13,6 +10,6 @@ let rec cantor_pairing = function
       in z
 in
 
-let result = cantor_pairing (S S 0, S S S 0) in
+let result = cantor_pairing (2, 3) in
 
 (result, {invert cantor_pairing} result)

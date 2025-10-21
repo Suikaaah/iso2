@@ -18,18 +18,55 @@ type elt = Mono of any | Scheme of { forall : int list; a : any }
 type context = elt StrMap.t
 type generator = { mutable i : int }
 
+let rec invert_iso_type : any -> any myresult = function
+  | BiArrow { a; b } -> Ok (BiArrow { a = b; b = a })
+  | Arrow { a; b } ->
+      let** a = invert_iso_type a in
+      let++ b = invert_iso_type b in
+      Arrow { a; b }
+  (* is this needed? *)
+  | Inverted a -> Ok a
+  | otherwise -> Error (show_any otherwise ^ " is not an iso type")
+
+and base_of_any : any -> Types.base_type myresult = function
+  | Unit -> Ok Types.Unit
+  | Product l ->
+      let++ l = List.map base_of_any l |> bind_all in
+      Types.Product l
+  | Named x -> Ok (Types.Named x)
+  | Var x -> Ok (Types.Var ("'" ^ string_of_int x))
+  | Ctor (l, x) ->
+      let++ l = List.map base_of_any l |> bind_all in
+      Types.Ctor (l, x)
+  | _ -> Error "this ain't a base type"
+
+and iso_of_any : any -> Types.iso_type myresult = function
+  | BiArrow { a; b } ->
+      let** a = base_of_any a in
+      let++ b = base_of_any b in
+      Types.BiArrow { a; b }
+  | Arrow { a; b } ->
+      let** t_1 = iso_of_any a in
+      let++ t_2 = iso_of_any b in
+      Types.Arrow { t_1; t_2 }
+  | Var x -> Ok (Types.Var x)
+  | Inverted a ->
+      let** inv = invert_iso_type a in
+      iso_of_any inv
+  | _ -> Error "this ain't an iso type"
+
 (* todo: update *)
-let rec show_any : any -> string = function
-  | Unit -> "()"
-  | Product l -> show_tuple show_any l
-  | Named x -> x
-  | Var x -> "'" ^ string_of_int x
-  | BiArrow { a; b } -> show_any a ^ " <-> " ^ show_any b
-  | Arrow { a; b } -> "(" ^ show_any a ^ ") -> (" ^ show_any b ^ ")"
-  | Ctor ([], _) -> "unreachable"
-  | Ctor ([ x ], a) -> show_any x ^ " " ^ a
-  | Ctor (l, a) -> show_tuple show_any l ^ " " ^ a
-  | Inverted a -> "inverted " ^ show_any a
+and show_any : any -> string = function
+  | Inverted a -> "invert (" ^ show_any a ^ ")"
+  | a -> begin
+      match base_of_any a with
+      | Ok a -> Types.show_base_type a
+      | Error _ -> begin
+          match iso_of_any a with
+          | Ok a -> Types.show_iso_type a
+          | Error _ -> "unreachable (neither base or iso)"
+        end
+    end
 
 let show_elt : elt -> string = function
   | Mono a -> show_any a
@@ -84,16 +121,6 @@ let rec occurs (x : int) : any -> bool = function
   | Var y -> x = y
   | Inverted a -> occurs x a
   | _ -> false
-
-let rec invert_iso_type : any -> any myresult = function
-  | BiArrow { a; b } -> Ok (BiArrow { a = b; b = a })
-  | Arrow { a; b } ->
-      let** a = invert_iso_type a in
-      let++ b = invert_iso_type b in
-      Arrow { a; b }
-  (* is this needed? *)
-  | Inverted a -> Ok a
-  | otherwise -> Error (show_any otherwise ^ " is not an iso type")
 
 let rec unify : equation list -> subst list myresult = function
   | [] -> Ok []
@@ -288,10 +315,9 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
         let left = List.map (fun (v, _) -> v) p in
         let right = List.map (fun (_, e) -> Types.value_of_expr e) p in
         let opt =
-          let* _ = for_all_pairs is_orthogonal left in
-          for_all_pairs is_orthogonal right
+          (for_all_pairs is_orthogonal left, for_all_pairs is_orthogonal right)
         in
-        match opt with Some e -> Error e | None -> Ok ()
+        match opt with None, None -> Ok () | Some e, _ | _, Some e -> Error e
       in
       let infer p =
         let++ pairs = List.map (infer_pair gen ctx) p |> bind_all in
@@ -310,7 +336,9 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
         { a = BiArrow { a; b }; e = e_v @ e_e @ es }
       in
       let** () = check_orth p in
-      infer p
+      let** retval = infer p in
+      let++ _ = invert_pairs p |> infer in
+      retval
   | Fix { phi; omega } ->
       let fresh = Var (fresh gen) in
       let ctx = StrMap.add phi (Mono fresh) ctx in
@@ -348,33 +376,6 @@ let rec any_of_base (map : int StrMap.t) : Types.base_type -> any myresult =
   | Ctor (l, x) ->
       let++ l = List.map (any_of_base map) l |> bind_all in
       Ctor (l, x)
-
-let rec base_of_any : any -> Types.base_type myresult = function
-  | Unit -> Ok Types.Unit
-  | Product l ->
-      let++ l = List.map base_of_any l |> bind_all in
-      Types.Product l
-  | Named x -> Ok (Types.Named x)
-  | Var x -> Ok (Types.Var ("'" ^ string_of_int x))
-  | Ctor (l, x) ->
-      let++ l = List.map base_of_any l |> bind_all in
-      Types.Ctor (l, x)
-  | _ -> Error "this ain't a base type"
-
-let rec iso_of_any : any -> Types.iso_type myresult = function
-  | BiArrow { a; b } ->
-      let** a = base_of_any a in
-      let++ b = base_of_any b in
-      Types.BiArrow { a; b }
-  | Arrow { a; b } ->
-      let** t_1 = iso_of_any a in
-      let++ t_2 = iso_of_any b in
-      Types.Arrow { t_1; t_2 }
-  | Var x -> Ok (Types.Var x)
-  | Inverted a ->
-      let** inv = invert_iso_type a in
-      iso_of_any inv
-  | _ -> Error "this ain't an iso type"
 
 let build_ctx (gen : generator) (defs : Types.typedef list) : context myresult =
   let build Types.{ vars; t; vs } =

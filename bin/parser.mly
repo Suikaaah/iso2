@@ -31,6 +31,7 @@ open Types
 %token FUN
 %token MATCH
 %token WITH
+%token <int> NAT
 %token <string> TVAR
 %token <string> VAR
 %token <string> CTOR
@@ -85,6 +86,7 @@ value:
   | c = CTOR; v = value; { Cted { c ; v } }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
+  | n = NAT; { nat_of_int n }
   | LBRACKET; RBRACKET; { Named "Nil" }
   | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
   | LBRACKET; vs = separated_nonempty_list(SEMICOLON, value); RBRACKET;
@@ -150,3 +152,4 @@ term:
       List.fold_right f ts (Named "Nil")
     }
 
+  | n = NAT; { nat_of_int n |> term_of_value }

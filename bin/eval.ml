@@ -140,7 +140,7 @@ let rec eval (t : term) : term =
             match match_pair p v' with
             | Some pair -> pair
             | None ->
-                "no matching pair found: " ^ show_value v' ^ " |> "
+                "no matching pair found: " ^ show_value v' ^ " |>\n"
                 ^ show_pairs p
                 |> failwith
           in

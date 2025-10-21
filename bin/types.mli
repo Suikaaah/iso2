@@ -58,3 +58,4 @@ val show_expr : expr -> string
 val show_pairs : (value * expr) list -> string
 val show_iso : iso -> string
 val show_term : term -> string
+val nat_of_int : int -> value

@@ -1,8 +1,3 @@
-type t = A | B | C
-type u = X | Y | Z
-type 'a opt = None | Some of 'a
+type a = A of (nat * nat) list
 
-let a = Some A in
-let x = Some X in
-let (a, x, s) = (a, x, Some) in
-(a, x, s)
+A [(0, 3)]
