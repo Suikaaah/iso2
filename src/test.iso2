@@ -1,6 +1,8 @@
-type a = A
-type b = B
+type t = A | B | C
+type u = X | Y | Z
+type 'a opt = None | Some of 'a
 
-let (a, b) = (A, B) in
-
-(a, b)
+let a = Some A in
+let x = Some X in
+let (a, x, s) = (a, x, Some) in
+(a, x, s)

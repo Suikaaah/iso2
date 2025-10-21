@@ -12,12 +12,13 @@ let () =
   let res =
     let** { t; ts } = read_program Sys.argv.(1) in
     let gen = { i = 0 } in
-    let ctx = build_ctx gen ts in
+    let** ctx = build_ctx gen ts in
     let** inferred = infer_term t gen ctx in
-    let++ a = finalize inferred in
-    "inferred: " ^ show_any a |> print_endline;
+    let** a = finalize inferred in
+    let++ a = base_of_any a in
+    "inferred: " ^ show_base_type a |> print_endline;
     try Eval.eval t |> show_term |> print_endline
     with Failure e | Invalid_argument e ->
       report "Runtime Error" e |> print_endline
   in
-  match res with Ok () -> () | Error e -> report "Error" e |> print_string
+  match res with Ok () -> () | Error e -> report "Error" e |> print_endline

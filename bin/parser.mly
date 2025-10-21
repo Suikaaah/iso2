@@ -5,14 +5,20 @@ open Types
 %token EOF
 %token LPAREN
 %token RPAREN
+%token LBRACKET
+%token RBRACKET
 %token LBRACE
 %token RBRACE
+%token TIMES
 %token PIPE
 %token DOT
 %token COMMA
+%token SEMICOLON
+%token CONS
 %token ARROW
 %token BIARROW
 %token EQUAL
+%token UNIT
 %token LET
 %token IN
 %token ISO
@@ -25,7 +31,7 @@ open Types
 %token FUN
 %token MATCH
 %token WITH
-%token <int> TVAR
+%token <string> TVAR
 %token <string> VAR
 %token <string> CTOR
 
@@ -44,22 +50,33 @@ open Types
 
 wtf(separator, X):
   | x = X; separator; y = X; { [x; y] }
-  | x = X; separator; xs = wtf(separator, X) { x :: xs }
+  | x = X; separator; xs = wtf(separator, X); { x :: xs }
 
 program:
   | ts = typedef*; t = term; EOF; { { ts; t } }
 
 typedef:
-  | TYPE; t = VAR; EQUAL; PIPE?; vs = separated_nonempty_list(PIPE, variant); { { t; vs } }
+  | TYPE; t = VAR; EQUAL; PIPE?; vs = separated_nonempty_list(PIPE, variant);
+    { { vars = []; t; vs } }
+
+  | TYPE; var = TVAR; t = VAR; EQUAL; PIPE?; vs = separated_nonempty_list(PIPE, variant);
+    { { vars = [var]; t; vs } }
+
+  | TYPE; LPAREN; vars = wtf(COMMA, TVAR); RPAREN; t = VAR; EQUAL; PIPE?; vs = separated_nonempty_list(PIPE, variant);
+    { { vars; t; vs } }
 
 variant:
   | c = CTOR; OF; a = base_type; { Iso { c; a } }
   | c = CTOR; { Value c }
 
 base_type:
-  | LPAREN; RPAREN; { Unit }
-  | LPAREN; ts = wtf(COMMA, base_type) RPAREN; { Product ts }
+  | UNIT; { Unit }
+  | ts = wtf(TIMES, base_type); { Product ts }
   | x = VAR; { Named x }
+  | x = TVAR; { Var x }
+  | t = base_type; a = VAR; { Ctor ([t], a) }
+  | LPAREN; t = base_type; RPAREN; { t }
+  | LPAREN; ts = wtf(COMMA, base_type); RPAREN; a = VAR; { Ctor (ts, a) }
 
 value:
   | LPAREN; RPAREN; { Unit }
@@ -68,6 +85,13 @@ value:
   | c = CTOR; v = value; { Cted { c ; v } }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
+  | LBRACKET; RBRACKET; { Named "Nil" }
+  | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
+  | LBRACKET; vs = separated_nonempty_list(SEMICOLON, value); RBRACKET;
+    {
+      let f value acc = Cted { c = "Cons"; v = Tuple [value; acc] } in
+      List.fold_right f vs (Named "Nil")
+    }
 
 pat:
   | x = VAR; { Named x }
@@ -117,3 +141,12 @@ term:
       let omega = Fix { phi; omega } in
       LetIso { phi; omega = lambdas_of_params params omega; t }
     }
+
+  | LBRACKET; RBRACKET; { Named "Nil" }
+  | t_1 = term; CONS; t_2 = term; { App { omega = Named "Cons"; t = Tuple [t_1; t_2] } }
+  | LBRACKET; ts = separated_nonempty_list(SEMICOLON, term); RBRACKET;
+    {
+      let f t acc = App { omega = Named "Cons"; t = Tuple [t; acc] } in
+      List.fold_right f ts (Named "Nil")
+    }
+

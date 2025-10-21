@@ -7,6 +7,8 @@ type any =
   | BiArrow of { a : any; b : any }
   | Arrow of { a : any; b : any }
   | Var of int
+  | Ctor of any list * string
+  | Inverted of any
 
 type equation = any * any
 type subst = { what : int; into : any }
@@ -27,6 +29,7 @@ val subst_in_context : subst -> context -> context
 val subst_in_equations : subst -> equation list -> equation list
 val instantiate : generator -> elt -> any
 val occurs : int -> any -> bool
+val invert_iso_type : any -> any myresult
 val unify : equation list -> subst list myresult
 val finalize : inferred -> any myresult
 
@@ -46,7 +49,10 @@ val generalize_iso :
   equation list -> context -> string -> any -> context myresult
 
 val extract_named : generator -> Types.value -> context
-val invert_iso_type : any -> any myresult
+val is_orthogonal : Types.value -> Types.value -> string option
+
+val invert_pairs :
+  (Types.value * Types.expr) list -> (Types.value * Types.expr) list
 
 val infer_pair :
   generator -> context -> Types.value * Types.expr -> inferred_pair myresult
@@ -54,12 +60,7 @@ val infer_pair :
 val infer_term : Types.term -> generator -> context -> inferred myresult
 val infer_expr : Types.expr -> generator -> context -> inferred myresult
 val infer_iso : Types.iso -> generator -> context -> inferred myresult
-val any_of_base : Types.base_type -> any
+val any_of_base : int StrMap.t -> Types.base_type -> any myresult
 val base_of_any : any -> Types.base_type myresult
 val iso_of_any : any -> Types.iso_type myresult
-val build_ctx : generator -> Types.typedef list -> context
-
-(*
-val is_orthogonal : value -> value -> string option
-val invert_pairs : (value * expr) list -> (value * expr) list
-*)
+val build_ctx : generator -> Types.typedef list -> context myresult

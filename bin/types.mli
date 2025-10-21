@@ -2,7 +2,8 @@ type base_type =
   | Unit
   | Product of base_type list
   | Named of string
-  | Var of int
+  | Var of string
+  | Ctor of base_type list * string
 
 type iso_type =
   | BiArrow of { a : base_type; b : base_type }
@@ -38,7 +39,7 @@ type term =
   | LetIso of { phi : string; omega : iso; t : term }
 
 type variant = Value of string | Iso of { c : string; a : base_type }
-type typedef = { t : string; vs : variant list }
+type typedef = { vars : string list; t : string; vs : variant list }
 type program = { ts : typedef list; t : term }
 
 val term_of_value : value -> term

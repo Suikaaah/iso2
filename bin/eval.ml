@@ -175,5 +175,5 @@ and eval_iso (omega : iso) : iso =
           subst_iso ~from:psi ~into:omega_2 ~what:omega |> eval_iso
       | _ -> omega
     end
-  | Invert omega -> eval_iso omega |> eval_iso
+  | Invert omega -> eval_iso omega |> invert |> eval_iso
   | _ -> omega

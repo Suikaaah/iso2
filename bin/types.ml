@@ -4,7 +4,8 @@ type base_type =
   | Unit
   | Product of base_type list
   | Named of string
-  | Var of int
+  | Var of string
+  | Ctor of base_type list * string
 
 type iso_type =
   | BiArrow of { a : base_type; b : base_type }
@@ -40,7 +41,7 @@ type term =
   | LetIso of { phi : string; omega : iso; t : term }
 
 type variant = Value of string | Iso of { c : string; a : base_type }
-type typedef = { t : string; vs : variant list }
+type typedef = { vars : string list; t : string; vs : variant list }
 type program = { ts : typedef list; t : term }
 
 let rec term_of_value : value -> term = function
@@ -85,11 +86,18 @@ let rec lambdas_of_params : string list -> iso -> iso = function
   | psi :: tl -> fun omega -> Lambda { psi; omega = lambdas_of_params tl omega }
 
 let rec show_base_type : base_type -> string = function
-  | Unit -> "()"
-  | Product (hd :: tl) -> show_tuple show_base_type hd tl
-  | Product _ -> "unreachable"
+  | Unit -> "unit"
+  | Product [ a ] -> show_base_type a
+  | Product ((Ctor _ as c) :: tl) ->
+      "(" ^ show_base_type c ^ ") * " ^ show_base_type (Product tl)
+  | Product (hd :: tl) ->
+      show_base_type hd ^ " * " ^ show_base_type (Product tl)
+  | Product [] -> "unreachable"
   | Named x -> x
-  | Var x -> "'" ^ string_of_int x
+  | Var x -> "'" ^ x
+  | Ctor ([], _) -> "unreachable"
+  | Ctor ([ x ], a) -> show_base_type x ^ " " ^ a
+  | Ctor (l, a) -> show_tuple show_base_type l ^ " " ^ a
 
 let rec show_iso_type : iso_type -> string = function
   | BiArrow { a; b } -> show_base_type a ^ " <-> " ^ show_base_type b
@@ -99,15 +107,22 @@ let rec show_iso_type : iso_type -> string = function
 
 let rec show_value : value -> string = function
   | Unit -> "()"
+  | Named "Nil" -> "[]"
   | Named x -> x
+  | Cted { c = "Cons"; v = Tuple [ v_1; v_2 ] } ->
+      let rec lmao = function
+        | Cted { c = "Cons"; v = Tuple [ v_1; v_2 ] } ->
+            "; " ^ lmao v_1 ^ lmao v_2
+        | Named "Nil" -> ""
+        | _ -> "<bruh>"
+      in
+      "[" ^ show_value v_1 ^ lmao v_2 ^ "]"
   | Cted { c; v } -> c ^ " " ^ show_value v
-  | Tuple (hd :: tl) -> show_tuple show_value hd tl
-  | Tuple _ -> "unreachable"
+  | Tuple l -> show_tuple show_value l
 
 let rec show_pat : pat -> string = function
   | Named x -> x
-  | Tuple (hd :: tl) -> show_tuple show_pat hd tl
-  | Tuple _ -> "unreachable"
+  | Tuple l -> show_tuple show_pat l
 
 let rec show_expr : expr -> string = function
   | Value v -> show_value v
@@ -137,8 +152,7 @@ and show_iso : iso -> string = function
 let rec show_term : term -> string = function
   | Unit -> "()"
   | Named x -> x
-  | Tuple (hd :: tl) -> show_tuple show_term hd tl
-  | Tuple _ -> "unreachable"
+  | Tuple l -> show_tuple show_term l
   | App { omega = (Pairs _ | Named _) as omega; t } ->
       show_iso omega ^ " " ^ show_term t
   | App { omega; t } -> "{" ^ show_iso omega ^ "} " ^ show_term t
