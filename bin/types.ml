@@ -90,7 +90,7 @@ let rec show_base_type : base_type -> string = function
   | Product l ->
       show_listlike show_base_type ~left:"(" ~delim:" * " ~right:")" l
   | Named x | Var x -> x
-  | Ctor ([], _) -> "unreachable (type constructor with zero arity)"
+  | Ctor ([], _) -> "unreachable (type constructor with Z arity)"
   | Ctor ([ x ], a) -> show_base_type x ^ " " ^ a
   | Ctor (l, a) -> show_tuple show_base_type l ^ " " ^ a
 
@@ -103,13 +103,13 @@ let rec show_iso_type : iso_type -> string = function
 
 let rec show_value : value -> string = function
   | Unit -> "()"
-  | Named "Zero" -> "0"
+  | Named "Z" -> "0"
   | Named "Nil" -> "[]"
   | Named x -> x
   | Cted { c = "S"; v } ->
       let rec lmao = function
         | Cted { c = "S"; v } -> 1 + lmao v
-        | Named "Zero" -> 0
+        | Named "Z" -> 0
         | _ -> 0
       in
       1 + lmao v |> string_of_int
@@ -154,14 +154,14 @@ and show_iso : iso -> string = function
 
 let rec show_term : term -> string = function
   | Unit -> "()"
-  | Named "Zero" -> "0"
+  | Named "Z" -> "0"
   | Named "Nil" -> "[]"
   | Named x -> x
   | Tuple l -> show_tuple show_term l
   | App { omega = Named "S"; t } ->
       let rec lmao = function
         | App { omega = Named "S"; t } -> 1 + lmao t
-        | Named "Zero" -> 0
+        | Named "Z" -> 0
         | _ -> 0
       in
       1 + lmao t |> string_of_int
@@ -181,4 +181,4 @@ let rec show_term : term -> string = function
       "let iso " ^ phi ^ " = " ^ show_iso omega ^ " in " ^ show_term t
 
 let rec nat_of_int (n : int) : value =
-  if n < 1 then Named "Zero" else Cted { c = "S"; v = nat_of_int (n - 1) }
+  if n < 1 then Named "Z" else Cted { c = "S"; v = nat_of_int (n - 1) }
