@@ -78,3 +78,6 @@ let boldred (value : string) : string = "\x1b[1;31m" ^ value ^ "\x1b[0m"
 let find_res (what : string) (map : 'a StrMap.t) : 'a myresult =
   StrMap.find_opt what map
   |> Option.to_result ~none:(what ^ " was not found in current context")
+
+let rec repeat (what : string) (count : int) : string =
+  if count < 1 then "" else what ^ repeat what (count - 1)

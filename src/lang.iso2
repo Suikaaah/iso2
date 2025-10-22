@@ -1,0 +1,16 @@
+type 'a t = A | B of 'a
+
+let iso map f = function
+  | None   <-> None
+  | Some x <-> let y = f x in Some y
+in
+
+let iso swap = function
+  | (x, y) <-> (y, x)
+in
+
+let a = map swap None in
+let b = map swap (Some (3, 4)) in
+
+[B (B (a, b)); A]
+

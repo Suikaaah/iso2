@@ -47,9 +47,7 @@ val is_orthogonal : Types.value -> Types.value -> string option
 val invert_pairs :
   (Types.value * Types.expr) list -> (Types.value * Types.expr) list
 
-val check_dup_in_value : Types.value -> unit myresult
-val check_dup_in_pat : Types.pat -> unit myresult
-val check_dup_in_expr : Types.expr -> unit myresult
+val check_pair : Types.value * Types.expr -> unit myresult
 
 val infer_pair :
   generator -> context -> Types.value * Types.expr -> inferred_pair myresult

@@ -9,9 +9,9 @@ in
 (* add (x, y) = (x + y, y) *)
 let rec add = function
   | (m, S n) <->
-      let m = S m in
-      let (m, n) = add (m, n) in
-      (m, S n)
+      let m' = S m in
+      let (m'', n') = add (m', n) in
+      (m'', S n')
   | (m, 0) <-> (m, 0)
 in
 
@@ -27,7 +27,7 @@ let rec cantor_pairing = function
       in z
 in
 
-let result = {map add} [(2, 3); (5, 3); (10, 10)] in
+let result = map add [(2, 3); (5, 3); (10, 10)] in
 
-(result, {invert map add} result)
+(result, invert {map add} result)
 

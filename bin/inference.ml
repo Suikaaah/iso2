@@ -267,49 +267,59 @@ let invert_pairs (pairs : (Types.value * Types.expr) list) :
   let invert_pair (v, e) = invert_expr e (Value v) in
   List.map invert_pair pairs
 
-let check_dup_in_value (v : Types.value) : unit myresult =
-  let counter = ref StrSet.empty in
-  let process x =
-    match StrSet.find_opt x !counter with
+let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
+  let set = ref StrSet.empty in
+  let add_unique x =
+    match StrSet.find_opt x !set with
+    | Some _ -> Error (x ^ " is used more than once")
     | None ->
-        counter := StrSet.add x !counter;
+        set := StrSet.add x !set;
         Ok ()
-    | Some _ -> Error (x ^ " appears more than once in " ^ Types.show_value v)
   in
-  let rec check = function
-    | Types.Cted { v; _ } -> check v
+  let ensure_existence x =
+    match StrSet.find_opt x !set with
+    | Some _ -> Ok ()
+    | None -> Error (x ^ " is not in context")
+  in
+  let rec collect_in_value = function
+    | Types.Cted { v; _ } -> collect_in_value v
     | Types.Unit -> Ok ()
-    | Types.Named x when is_variable x -> process x
+    | Types.Named x when is_variable x -> add_unique x
     | Types.Named _ -> Ok ()
     | Types.Tuple l ->
-        let++ _ = List.map check l |> bind_all in
+        let++ _ = List.map collect_in_value l |> bind_all in
         ()
   in
-  check v
-
-let check_dup_in_pat (p : Types.pat) : unit myresult =
-  let counter = ref StrSet.empty in
-  let process x =
-    match StrSet.find_opt x !counter with
-    | None ->
-        counter := StrSet.add x !counter;
-        Ok ()
-    | Some _ -> Error (x ^ " appears more than once in " ^ Types.show_pat p)
-  in
-  let rec check : Types.pat -> unit myresult = function
-    | Types.Named x -> process x
+  let rec check_in_value = function
+    | Types.Cted { v; _ } -> check_in_value v
+    | Types.Unit -> Ok ()
+    | Types.Named x when is_variable x -> ensure_existence x
+    | Types.Named _ -> Ok ()
     | Types.Tuple l ->
-        let++ _ = List.map check l |> bind_all in
+        let++ _ = List.map check_in_value l |> bind_all in
         ()
   in
-  check p
-
-let rec check_dup_in_expr : Types.expr -> unit myresult = function
-  | Types.Value v -> check_dup_in_value v
-  | Types.Let { p_1; p_2; e; _ } ->
-      let** _ = check_dup_in_pat p_1 in
-      let** _ = check_dup_in_pat p_2 in
-      check_dup_in_expr e
+  let rec collect_in_pat : Types.pat -> _ = function
+    | Types.Named x -> add_unique x
+    | Types.Tuple l ->
+        let++ _ = List.map collect_in_pat l |> bind_all in
+        ()
+  in
+  let rec check_in_pat : Types.pat -> _ = function
+    | Types.Named x -> ensure_existence x
+    | Types.Tuple l ->
+        let++ _ = List.map check_in_pat l |> bind_all in
+        ()
+  in
+  let rec check_in_expr : Types.expr -> _ = function
+    | Types.Let { p_1; p_2; e; _ } ->
+        let** _ = collect_in_pat p_1 in
+        let** _ = check_in_pat p_2 in
+        check_in_expr e
+    | Types.Value v -> check_in_value v
+  in
+  let** () = collect_in_value v in
+  check_in_expr e
 
 let rec infer_pair (gen : generator) (ctx : context)
     ((v, e) : Types.value * Types.expr) : inferred_pair myresult =
@@ -363,10 +373,18 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
   match omega with
   | Pairs p ->
       let check_orth p =
-        let left, right = List.split p in
-        let** _ = List.map check_dup_in_value left |> bind_all in
-        let** _ = List.map check_dup_in_expr right |> bind_all in
-        let right = List.map Types.value_of_expr right in
+        let** _ =
+          List.map
+            (fun (v, e) ->
+              check_pair (v, e)
+              |> Result.map_error (fun x ->
+                     x ^ " in pair " ^ Types.show_value v ^ " <-> "
+                     ^ Types.show_expr e))
+            p
+          |> bind_all
+        in
+        let left = List.map (fun (v, _) -> v) p in
+        let right = List.map (fun (_, e) -> Types.value_of_expr e) p in
         let opt =
           (for_all_pairs is_orthogonal left, for_all_pairs is_orthogonal right)
         in
@@ -389,9 +407,8 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
         { a = BiArrow { a; b }; e = e_v @ e_e @ es }
       in
       let** () = check_orth p in
-      let** retval = infer p in
-      let++ _ = invert_pairs p |> infer in
-      retval
+      let** () = invert_pairs p |> check_orth in
+      infer p
   | Fix { phi; omega } ->
       let fresh = Var (fresh gen) in
       let ctx = StrMap.add phi (Mono fresh) ctx in

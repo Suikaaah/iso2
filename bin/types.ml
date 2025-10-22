@@ -101,28 +101,42 @@ let rec show_iso_type : iso_type -> string = function
   | Arrow { t_1; t_2 } -> show_iso_type t_1 ^ " -> " ^ show_iso_type t_2
   | Var x -> "'" ^ string_of_int x
 
-let rec show_value : value -> string = function
+let rec show_value : value -> string =
+  let rec is_int = function
+    | Cted { c = "S"; v } -> is_int v
+    | Named "Z" -> true
+    | _ -> false
+  in
+  let rec is_list = function
+    | Cted { c = "Cons"; v = Tuple [ _; v ] } -> is_list v
+    | Named "Nil" -> true
+    | _ -> false
+  in
+  function
   | Unit -> "()"
   | Named "Z" -> "0"
   | Named "Nil" -> "[]"
   | Named x -> x
-  | Cted { c = "S"; v } ->
-      let rec lmao = function
-        | Cted { c = "S"; v } -> 1 + lmao v
-        | Named "Z" -> 0
-        | _ -> 0
+  | Cted { c = "S"; v } -> begin
+      let rec lmao acc = function
+        | Cted { c = "S"; v } -> lmao (acc + 1) v
+        | Named "Z" -> Ok acc
+        | otherwise -> Error (repeat "S " acc ^ show_value otherwise)
       in
-      1 + lmao v |> string_of_int
+      match lmao 1 v with Ok n -> string_of_int n | Error t -> t
+    end
   | Cted { c = "Cons"; v = Tuple [ v_1; v_2 ] } ->
       let rec lmao = function
         | Cted { c = "Cons"; v = Tuple [ v_1; v_2 ] } ->
             "; " ^ show_value v_1 ^ lmao v_2
         | Named "Nil" -> ""
-        | _ -> "<bruh>"
+        | otherwise -> "; " ^ show_value otherwise
       in
       "[" ^ show_value v_1 ^ lmao v_2 ^ "]"
-  | Cted { c; v } -> c ^ " " ^ show_value v
   | Tuple l -> show_tuple show_value l
+  | Cted { c; v = Cted _ as v } when (not (is_int v)) && not (is_list v) ->
+      c ^ " (" ^ show_value v ^ ")"
+  | Cted { c; v } -> c ^ " " ^ show_value v
 
 let rec show_pat : pat -> string = function
   | Named x -> x
@@ -130,7 +144,7 @@ let rec show_pat : pat -> string = function
 
 let rec show_expr : expr -> string = function
   | Value v -> show_value v
-  | Let { p_1; omega = Named _ as omega; p_2; e } ->
+  | Let { p_1; omega = (Named _ | Invert _) as omega; p_2; e } ->
       "let " ^ show_pat p_1 ^ " = " ^ show_iso omega ^ " " ^ show_pat p_2
       ^ " in " ^ show_expr e
   | Let { p_1; omega; p_2; e } ->
@@ -147,38 +161,54 @@ and show_iso : iso -> string = function
   | Fix { phi; omega; _ } -> "fix " ^ phi ^ ". " ^ show_iso omega
   | Lambda { psi; omega; _ } -> "fun " ^ psi ^ " -> " ^ show_iso omega
   | Named omega -> omega
-  | App { omega_1 = Named _ as omega_1; omega_2 } ->
+  | App { omega_1; omega_2 = (Named _ | Invert _) as omega_2 } ->
       show_iso omega_1 ^ " " ^ show_iso omega_2
-  | App { omega_1; omega_2 } -> "{" ^ show_iso omega_1 ^ "} " ^ show_iso omega_2
-  | Invert omega -> "invert " ^ show_iso omega
+  | App { omega_1; omega_2 } -> show_iso omega_1 ^ " {" ^ show_iso omega_2 ^ "}"
+  | Invert ((Named _ | Invert _) as omega) -> "invert " ^ show_iso omega
+  | Invert omega -> "invert {" ^ show_iso omega ^ "}"
 
-let rec show_term : term -> string = function
+let rec show_term : term -> string =
+  let rec is_int = function
+    | App { omega = Named "S"; t } -> is_int t
+    | Named "Z" -> true
+    | _ -> false
+  in
+  let rec is_list = function
+    | App { omega = Named "Cons"; t = Tuple [ _; t ] } -> is_list t
+    | Named "Nil" -> true
+    | _ -> false
+  in
+  function
   | Unit -> "()"
   | Named "Z" -> "0"
   | Named "Nil" -> "[]"
   | Named x -> x
   | Tuple l -> show_tuple show_term l
-  | App { omega = Named "S"; t } ->
-      let rec lmao = function
-        | App { omega = Named "S"; t } -> 1 + lmao t
-        | Named "Z" -> 0
-        | _ -> 0
+  | App { omega = Named "S"; t } -> begin
+      let rec lmao acc = function
+        | App { omega = Named "S"; t } -> lmao (acc + 1) t
+        | Named "Z" -> Ok acc
+        | otherwise -> Error (repeat "S " acc ^ show_term otherwise)
       in
-      1 + lmao t |> string_of_int
+      match lmao 1 t with Ok n -> string_of_int n | Error t -> t
+    end
   | App { omega = Named "Cons"; t = Tuple [ t_1; t_2 ] } ->
       let rec lmao = function
         | App { omega = Named "Cons"; t = Tuple [ t_1; t_2 ] } ->
             "; " ^ show_term t_1 ^ lmao t_2
         | Named "Nil" -> ""
-        | _ -> "<bruh>"
+        | otherwise -> "; " ^ show_term otherwise
       in
       "[" ^ show_term t_1 ^ lmao t_2 ^ "]"
-  | App { omega = Named _ as omega; t } -> show_iso omega ^ " " ^ show_term t
-  | App { omega; t } -> "{" ^ show_iso omega ^ "} " ^ show_term t
+  | App { omega; t = App _ as t } when (not (is_int t)) && not (is_list t) ->
+      show_iso omega ^ " (" ^ show_term t ^ ")"
+  | App { omega; t = (Let _ | LetIso _) as t } ->
+      show_iso omega ^ " (" ^ show_term t ^ ")"
+  | App { omega; t } -> show_iso omega ^ " " ^ show_term t
   | Let { p; t_1; t_2 } ->
-      "let " ^ show_pat p ^ " = " ^ show_term t_1 ^ " in " ^ show_term t_2
+      "let " ^ show_pat p ^ " = " ^ show_term t_1 ^ " in\n" ^ show_term t_2
   | LetIso { phi; omega; t } ->
-      "let iso " ^ phi ^ " = " ^ show_iso omega ^ " in " ^ show_term t
+      "let iso " ^ phi ^ " = " ^ show_iso omega ^ " in\n" ^ show_term t
 
 let rec nat_of_int (n : int) : value =
   if n < 1 then Named "Z" else Cted { c = "S"; v = nat_of_int (n - 1) }

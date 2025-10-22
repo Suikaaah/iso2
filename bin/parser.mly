@@ -38,10 +38,13 @@ open Types
 
 %start <program> program
 %type <base_type> base_type
+%type <value> value_nogroup
 %type <value> value
 %type <pat> pat
 %type <expr> expr
+%type <iso> iso_nogroup
 %type <iso> iso
+%type <term> term_nogroup
 %type <term> term
 %type <variant> variant
 %type <typedef> typedef
@@ -79,21 +82,24 @@ base_type:
   | LPAREN; t = base_type; RPAREN; { t }
   | LPAREN; ts = wtf(COMMA, base_type); RPAREN; a = VAR; { Ctor (ts, a) }
 
-value:
+value_nogroup:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; v = value; RPAREN; { v }
   | LPAREN; vs = wtf(COMMA, value); RPAREN; { Tuple vs }
-  | c = CTOR; v = value; { Cted { c ; v } }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
   | n = NAT; { nat_of_int n }
   | LBRACKET; RBRACKET; { Named "Nil" }
-  | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
   | LBRACKET; vs = separated_nonempty_list(SEMICOLON, value); RBRACKET;
     {
       let f value acc = Cted { c = "Cons"; v = Tuple [value; acc] } in
       List.fold_right f vs (Named "Nil")
     }
+
+value:
+  | c = CTOR; v = value_nogroup; { Cted { c ; v } }
+  | v_1 = value_nogroup; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
+  | v = value_nogroup; { v }
 
 pat:
   | x = VAR; { Named x }
@@ -114,23 +120,36 @@ biarrowed:
 param:
   | phi = VAR; { phi }
 
-iso:
+iso_nogroup:
   | LBRACE; omega = iso; RBRACE; { omega }
+  | x = VAR; { Named x }
+  | x = CTOR; { Named x }
+  | INVERT; omega = iso_nogroup; { Invert omega }
+
+iso:
   | FUNCTION; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
   | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
   | FUN; params = param+; ARROW; omega = iso; { lambdas_of_params params omega }
-  | x = VAR; { Named x }
-  | x = CTOR; { Named x }
-  | omega_1 = iso; omega_2 = iso; { App { omega_1; omega_2 } }
-  | INVERT; omega = iso; { Invert omega }
+  | omega_1 = iso; omega_2 = iso_nogroup; { App { omega_1; omega_2 } }
+  | omega = iso_nogroup; { omega }
 
-term:
+term_nogroup:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; t = term; RPAREN; { t }
   | LPAREN; ts = wtf(COMMA, term); RPAREN; { Tuple ts }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
-  | omega = iso; t = term; { App { omega; t } }
+  | LBRACKET; RBRACKET; { Named "Nil" }
+  | LBRACKET; ts = separated_nonempty_list(SEMICOLON, term); RBRACKET;
+    {
+      let f t acc = App { omega = Named "Cons"; t = Tuple [t; acc] } in
+      List.fold_right f ts (Named "Nil")
+    }
+
+  | n = NAT; { nat_of_int n |> term_of_value }
+
+term:
+  | omega = iso; t = term_nogroup; { App { omega; t } }
   | MATCH; t = term; WITH; PIPE?; p = separated_nonempty_list(PIPE, biarrowed);
     { App { omega = Pairs p; t } }
 
@@ -144,12 +163,5 @@ term:
       LetIso { phi; omega = lambdas_of_params params omega; t }
     }
 
-  | LBRACKET; RBRACKET; { Named "Nil" }
-  | t_1 = term; CONS; t_2 = term; { App { omega = Named "Cons"; t = Tuple [t_1; t_2] } }
-  | LBRACKET; ts = separated_nonempty_list(SEMICOLON, term); RBRACKET;
-    {
-      let f t acc = App { omega = Named "Cons"; t = Tuple [t; acc] } in
-      List.fold_right f ts (Named "Nil")
-    }
-
-  | n = NAT; { nat_of_int n |> term_of_value }
+  | t_1 = term_nogroup; CONS; t_2 = term; { App { omega = Named "Cons"; t = Tuple [t_1; t_2] } }
+  | t = term_nogroup; { t }
