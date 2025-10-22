@@ -13,3 +13,4 @@ in
 let result = cantor_pairing (2, 3) in
 
 (result, {invert cantor_pairing} result)
+

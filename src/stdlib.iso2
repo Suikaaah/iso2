@@ -1,0 +1,9 @@
+type 'a option = None | Some of 'a
+type ('a, 'b) result = Ok of 'a | Error of 'b
+
+(* [] and :: are also available *)
+type 'a list = Nil | Cons of 'a * 'a list
+
+(* literals like 420 are also available *)
+type nat = Zero | S of nat
+

@@ -38,7 +38,7 @@ and base_of_any : any -> Types.base_type myresult = function
   | Ctor (l, x) ->
       let++ l = List.map base_of_any l |> bind_all in
       Types.Ctor (l, x)
-  | _ -> Error "this ain't a base type"
+  | _ -> Error "not a base type"
 
 and iso_of_any : any -> Types.iso_type myresult = function
   | BiArrow { a; b } ->
@@ -53,7 +53,7 @@ and iso_of_any : any -> Types.iso_type myresult = function
   | Inverted a ->
       let** inv = invert_iso_type a in
       iso_of_any inv
-  | _ -> Error "this ain't an iso type"
+  | _ -> Error "not an iso type"
 
 (* todo: update *)
 and show_any : any -> string = function

@@ -1,8 +1,10 @@
-type char = A | B | C
+type char = A | B | C | D | E | F | G | H
+
 type value =
   | Unit
-  | Named of char list
-  | Cted of char list * value
+  | Named of char
+  | Cted of char * value * char
   | Tuple of value list
 
-Tuple [Unit; Named []]
+()
+

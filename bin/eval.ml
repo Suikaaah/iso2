@@ -89,18 +89,18 @@ let rec subst_iso_in_term ~(from : string) ~(into : iso) ~(what : term) : term =
       LetIso { phi; omega = subst_iso omega; t = subst_iso_in_term t }
   | _ -> what
 
-let rec value_of_term (t : term) : value =
+let rec value_of_term (t : term) : value myresult =
   match t with
-  | Unit -> Unit
-  | Named x -> Named x
+  | Unit -> Ok Unit
+  | Named x -> Ok (Named x)
   | Tuple l ->
-      let l = List.map value_of_term l in
+      let++ l = List.map value_of_term l |> bind_all in
       let lmao : value = Tuple l in
       lmao
   | App { omega = Named c; t : term } ->
-      let v = value_of_term t in
+      let++ v = value_of_term t in
       Cted { c; v }
-  | _ -> "unreachable (unreduced term: " ^ show_term t ^ ")" |> failwith
+  | _ -> Error ("unreachable (unreduced term: " ^ show_term t ^ ")")
 
 let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
   let rec vv : value * value -> bool = function
@@ -128,21 +128,22 @@ let rec unify_value (u : value) (v : value) : (string * value) list =
       Option.value ~default:[] opt
   | _ -> []
 
-let rec eval (t : term) : term =
+let rec eval (t : term) : term myresult =
   match t with
-  | Tuple l -> Tuple (List.map eval l)
+  | Tuple l ->
+      let++ l = List.map eval l |> bind_all in
+      Tuple l
   | App { omega; t = u } -> begin
       let omega = eval_iso omega in
-      let v' = eval u |> value_of_term in
+      let** v' = Result.bind (eval u) value_of_term in
       match omega with
       | Pairs p ->
-          let v, e =
-            match match_pair p v' with
-            | Some pair -> pair
-            | None ->
-                "no matching pair found: " ^ show_value v' ^ " |>\n"
-                ^ show_pairs p
-                |> failwith
+          let** v, e =
+            match_pair p v'
+            |> Option.to_result
+                 ~none:
+                   ("no matching pair found: " ^ show_value v' ^ " |>\n"
+                  ^ show_pairs p)
           in
           let unified = unify_value v v' in
           List.fold_left
@@ -150,10 +151,10 @@ let rec eval (t : term) : term =
               subst ~from ~into:(term_of_value into) ~what:t)
             (term_of_expr e) unified
           |> eval
-      | _ -> t
+      | _ -> Ok t
     end
   | Let { p; t_1; t_2 } -> begin
-      let t_1 = eval t_1 in
+      let** t_1 = eval t_1 in
       let unified = unify p t_1 in
       List.fold_left
         (fun t (from, into) -> subst ~from ~into ~what:t)
@@ -163,7 +164,7 @@ let rec eval (t : term) : term =
   | LetIso { phi; omega; t } ->
       let omega = eval_iso omega in
       subst_iso_in_term ~from:phi ~into:omega ~what:t |> eval
-  | _ -> t
+  | _ -> Ok t
 
 and eval_iso (omega : iso) : iso =
   match omega with

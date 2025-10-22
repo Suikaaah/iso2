@@ -18,3 +18,4 @@ in
 let result = {map add} [(2, 3); (5, 3); (10, 10)] in
 
 (result, {invert map add} result)
+

@@ -1,9 +1,7 @@
 let read_program path =
-  let read = open_in path |> In_channel.input_all in
-  let stdlib =
-    "type 'a option = None | Some of 'a type 'a list = Nil | Cons of 'a * 'a \
-     list type nat = Zero | S of nat "
-  in
+  let read_to_string path = open_in path |> In_channel.input_all in
+  let stdlib = read_to_string "src/stdlib.iso2" in
+  let read = read_to_string path in
   let lexbuf = stdlib ^ read |> Lexing.from_string in
   try Ok (Parser.program Lexer.token lexbuf)
   with Parser.Error i -> Error (Messages.message i)
@@ -18,12 +16,11 @@ let () =
     let** { t; ts } = read_program Sys.argv.(1) in
     let gen = { i = 0 } in
     let** ctx = build_ctx gen ts in
-    let** inferred = infer_term t gen ctx in
-    let** a = finalize inferred in
-    let++ a = base_of_any a in
-    "inferred: " ^ show_base_type a |> print_endline;
-    try Eval.eval t |> show_term |> print_endline
-    with Failure e | Invalid_argument e ->
-      report "Runtime Error" e |> print_endline
+    let** inferred = Result.bind (infer_term t gen ctx) finalize in
+    let** base_type = base_of_any inferred in
+    let++ evaluated = Eval.eval t in
+    evaluated |> show_term |> print_endline;
+    ": " ^ show_base_type base_type |> print_endline
+    (* ": " ^ show_any inferred |> print_endline *)
   in
   match res with Ok () -> () | Error e -> report "Error" e |> print_endline
