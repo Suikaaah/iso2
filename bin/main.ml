@@ -17,10 +17,10 @@ let () =
     let gen = { i = 0 } in
     let** ctx = build_ctx gen ts in
     let** inferred = Result.bind (infer_term t gen ctx) finalize in
-    let** base_type = base_of_any inferred in
+    (* let** base_type = base_of_any inferred in *)
     let++ evaluated = Eval.eval t in
     evaluated |> show_term |> print_endline;
-    ": " ^ show_base_type base_type |> print_endline
-    (* ": " ^ show_any inferred |> print_endline *)
+    (* ": " ^ show_base_type base_type |> print_endline *)
+    ": " ^ show_any inferred |> print_endline
   in
   match res with Ok () -> () | Error e -> report "Error" e |> print_endline

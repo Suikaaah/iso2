@@ -1,4 +1,5 @@
 module StrMap : module type of Map.Make (String)
+module StrSet : module type of Set.Make (String)
 
 type 'a myresult = ('a, string) Result.t
 

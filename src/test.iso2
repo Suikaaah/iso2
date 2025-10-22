@@ -1,3 +1,0 @@
-type 'a char = A | B of 'a
-
-[A; B A]

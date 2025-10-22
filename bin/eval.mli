@@ -2,7 +2,7 @@ open Types
 open Util
 
 val invert : iso -> iso
-val unify : pat -> term -> (string * term) list
+val unify : pat -> term -> (string * term) list myresult
 val subst : from:string -> into:term -> what:term -> term
 val subst_iso : from:string -> into:iso -> what:iso -> iso
 val subst_iso_in_expr : from:string -> into:iso -> what:expr -> expr

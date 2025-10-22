@@ -15,6 +15,18 @@ let rec add = function
   | (m, 0) <-> (m, 0)
 in
 
+let rec cantor_pairing = function
+  | x <->
+      let y = match x with
+        | (S i, j) <-> Some (i, S j)
+        | (0, S j) <-> Some (j, 0)
+        | (0, 0)   <-> None
+      in let z = match y with
+        | Some x <-> let y = cantor_pairing x in S y
+        | None   <-> 0
+      in z
+in
+
 let result = {map add} [(2, 3); (5, 3); (10, 10)] in
 
 (result, {invert map add} result)

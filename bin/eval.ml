@@ -25,14 +25,18 @@ let rec invert (omega : iso) : iso =
       App { omega_1 = invert omega_1; omega_2 = invert omega_2 }
   | Invert omega -> omega
 
-let rec unify (p : pat) (t : term) : (string * term) list =
+let rec unify (p : pat) (t : term) : (string * term) list myresult =
   match (p, t) with
-  | Named x, _ -> [ (x, t) ]
-  | Tuple p, Tuple t ->
-      let combined = combine p t |> Option.get in
-      let nested = List.map (fun (p, t) -> unify p t) combined in
+  | Named x, _ -> Ok [ (x, t) ]
+  | Tuple p', Tuple t' ->
+      let** combined =
+        combine p' t'
+        |> Option.to_result
+             ~none:("arity mismatch: " ^ show_pat p ^ " and " ^ show_term t)
+      in
+      let++ nested = List.map (fun (p, t) -> unify p t) combined |> bind_all in
       List.flatten nested
-  | _ -> []
+  | _ -> Ok []
 
 let rec subst ~(from : string) ~(into : term) ~(what : term) : term =
   let subst what = subst ~from ~into ~what in
@@ -155,7 +159,7 @@ let rec eval (t : term) : term myresult =
     end
   | Let { p; t_1; t_2 } -> begin
       let** t_1 = eval t_1 in
-      let unified = unify p t_1 in
+      let** unified = unify p t_1 in
       List.fold_left
         (fun t (from, into) -> subst ~from ~into ~what:t)
         t_2 unified
