@@ -1,0 +1,54 @@
+let iso swap = function (x, y) <-> (y, x) in
+let iso id = function x <-> x in
+
+let rec list_map f = function
+  | h' :: t' <->
+      let h = f h' in
+      let t = list_map t' in
+      h :: t
+  | [] <-> []
+in
+
+(* add (x, y) = (x + y, y) *)
+let rec add = function
+  | (m, S n) <->
+      let m' = S m in
+      let (m'', n') = add (m', n) in
+      (m'', S n')
+  | (m, 0) <-> (m, 0)
+in
+
+let rec cantor_pairing = function
+  | x <->
+      let y = match x with
+        | (S i, j) <-> Some (i, S j)
+        | (0, S j) <-> Some (j, 0)
+        | (0, 0)   <-> None
+      in let z = match y with
+        | Some x <-> let y = cantor_pairing x in S y
+        | None   <-> 0
+      in z
+in
+
+let result = list_map add [(2, 3); (5, 3); (10, 10)] in
+let a = (result, invert {list_map add} result) in
+
+let iso option_map f = function
+  | None   <-> None
+  | Some x <-> let y = f x in Some y
+in
+
+let iso shift = function
+  | 0   <-> None
+  | S n <-> Some n
+in
+
+let iso compose g f = function
+  | x <->
+      let x' = f x in
+      let x'' = g x' in
+      x''
+in
+
+compose Some add (3, 7)
+
