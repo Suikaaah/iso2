@@ -85,6 +85,26 @@ let rec lambdas_of_params : string list -> iso -> iso = function
   | [] -> fun omega -> omega
   | psi :: tl -> fun omega -> Lambda { psi; omega = lambdas_of_params tl omega }
 
+let rec is_list_value : value -> bool = function
+  | Cted { c = "Cons"; v = Tuple [ _; v ] } -> is_list_value v
+  | Named "Nil" -> true
+  | _ -> false
+
+let rec is_list_term : term -> bool = function
+  | App { omega = Named "Cons"; t = Tuple [ _; t ] } -> is_list_term t
+  | Named "Nil" -> true
+  | _ -> false
+
+let rec is_int_value : value -> bool = function
+  | Cted { c = "S"; v } -> is_int_value v
+  | Named "Z" -> true
+  | _ -> false
+
+let rec is_int_term : term -> bool = function
+  | App { omega = Named "S"; t } -> is_int_term t
+  | Named "Z" -> true
+  | _ -> false
+
 let rec show_base_type : base_type -> string = function
   | Unit -> "unit"
   | Product l ->
@@ -105,18 +125,7 @@ let rec show_iso_type : iso_type -> string = function
   | Arrow { t_1; t_2 } -> "(" ^ show_iso_type t_1 ^ ") -> " ^ show_iso_type t_2
   | Var x -> "'" ^ string_of_int x
 
-let rec show_value : value -> string =
-  let rec is_int = function
-    | Cted { c = "S"; v } -> is_int v
-    | Named "Z" -> true
-    | _ -> false
-  in
-  let rec is_list = function
-    | Cted { c = "Cons"; v = Tuple [ _; v ] } -> is_list v
-    | Named "Nil" -> true
-    | _ -> false
-  in
-  function
+let rec show_value : value -> string = function
   | Unit -> "()"
   | Named "Z" -> "0"
   | Named "Nil" -> "[]"
@@ -129,16 +138,24 @@ let rec show_value : value -> string =
       in
       match lmao 1 v with Ok n -> string_of_int n | Error t -> t
     end
-  | Cted { c = "Cons"; v = Tuple [ v_1; v_2 ] } ->
-      let rec lmao = function
-        | Cted { c = "Cons"; v = Tuple [ v_1; v_2 ] } ->
-            "; " ^ show_value v_1 ^ lmao v_2
-        | Named "Nil" -> ""
-        | otherwise -> "; " ^ show_value otherwise
-      in
-      "[" ^ show_value v_1 ^ lmao v_2 ^ "]"
+  | Cted { c = "Cons"; v = Tuple [ v_1; v_2 ] } as v ->
+      if is_list_value v then
+        let rec lmao = function
+          | Cted { c = "Cons"; v = Tuple [ v_1; v_2 ] } ->
+              "; " ^ show_value v_1 ^ lmao v_2
+          | Named "Nil" -> ""
+          | otherwise -> "; " ^ show_value otherwise
+        in
+        "[" ^ show_value v_1 ^ lmao v_2 ^ "]"
+      else
+        let rec lmao = function
+          | Cted { c = "Cons"; v = Tuple [ v_1; v_2 ] } ->
+              " :: " ^ show_value v_1 ^ lmao v_2
+          | otherwise -> " :: " ^ show_value otherwise
+        in
+        show_value v_1 ^ lmao v_2
   | Tuple l -> show_tuple show_value l
-  | Cted { c; v = Cted _ as v } when (not (is_int v)) && not (is_list v) ->
+  | Cted { c; v = Cted _ as v } when not (is_int_value v || is_list_value v) ->
       c ^ " (" ^ show_value v ^ ")"
   | Cted { c; v } -> c ^ " " ^ show_value v
 
@@ -171,18 +188,7 @@ and show_iso : iso -> string = function
   | Invert (Named _ as omega) -> "invert " ^ show_iso omega
   | Invert omega -> "invert {" ^ show_iso omega ^ "}"
 
-let rec show_term : term -> string =
-  let rec is_int = function
-    | App { omega = Named "S"; t } -> is_int t
-    | Named "Z" -> true
-    | _ -> false
-  in
-  let rec is_list = function
-    | App { omega = Named "Cons"; t = Tuple [ _; t ] } -> is_list t
-    | Named "Nil" -> true
-    | _ -> false
-  in
-  function
+let rec show_term : term -> string = function
   | Unit -> "()"
   | Named "Z" -> "0"
   | Named "Nil" -> "[]"
@@ -196,15 +202,23 @@ let rec show_term : term -> string =
       in
       match lmao 1 t with Ok n -> string_of_int n | Error t -> t
     end
-  | App { omega = Named "Cons"; t = Tuple [ t_1; t_2 ] } ->
-      let rec lmao = function
-        | App { omega = Named "Cons"; t = Tuple [ t_1; t_2 ] } ->
-            "; " ^ show_term t_1 ^ lmao t_2
-        | Named "Nil" -> ""
-        | otherwise -> "; " ^ show_term otherwise
-      in
-      "[" ^ show_term t_1 ^ lmao t_2 ^ "]"
-  | App { omega; t = App _ as t } when (not (is_int t)) && not (is_list t) ->
+  | App { omega = Named "Cons"; t = Tuple [ t_1; t_2 ] } as t ->
+      if is_list_term t then
+        let rec lmao = function
+          | App { omega = Named "Cons"; t = Tuple [ t_1; t_2 ] } ->
+              "; " ^ show_term t_1 ^ lmao t_2
+          | Named "Nil" -> ""
+          | otherwise -> "; " ^ show_term otherwise
+        in
+        "[" ^ show_term t_1 ^ lmao t_2 ^ "]"
+      else
+        let rec lmao = function
+          | App { omega = Named "Cons"; t = Tuple [ t_1; t_2 ] } ->
+              " :: " ^ show_term t_1 ^ lmao t_2
+          | otherwise -> " :: " ^ show_term otherwise
+        in
+        show_term t_1 ^ lmao t_2
+  | App { omega; t = App _ as t } when not (is_int_term t || is_list_term t) ->
       show_iso omega ^ " (" ^ show_term t ^ ")"
   | App { omega; t = (Let _ | LetIso _) as t } ->
       show_iso omega ^ " (" ^ show_term t ^ ")"

@@ -14,6 +14,7 @@ let () =
   let open Util in
   let res =
     let** { t; ts } = read_program Sys.argv.(1) in
+    (* show_term t |> print_endline; *)
     let gen = { i = 0 } in
     let** ctx = build_ctx gen ts in
     let** inferred = Result.bind (infer_term t gen ctx) finalize in

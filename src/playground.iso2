@@ -50,5 +50,7 @@ let iso compose g f = function
       x''
 in
 
-compose Some add (3, 7)
+let iso unitgen = function x <-> (x, ()) in
+
+unitgen (Some 3)
 

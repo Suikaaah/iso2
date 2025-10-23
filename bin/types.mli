@@ -50,6 +50,10 @@ val contains : string -> pat -> bool
 val contains_value : string -> value -> bool
 val contains_pairs : string -> (value * expr) list -> bool
 val lambdas_of_params : string list -> iso -> iso
+val is_list_value : value -> bool
+val is_list_term : term -> bool
+val is_int_value : value -> bool
+val is_int_term : term -> bool
 val show_base_type : base_type -> string
 val show_iso_type : iso_type -> string
 val show_value : value -> string
