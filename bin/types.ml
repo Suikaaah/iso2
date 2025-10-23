@@ -144,7 +144,7 @@ let rec show_pat : pat -> string = function
 
 let rec show_expr : expr -> string = function
   | Value v -> show_value v
-  | Let { p_1; omega = (Named _ | Invert _) as omega; p_2; e } ->
+  | Let { p_1; omega = Named _ as omega; p_2; e } ->
       "let " ^ show_pat p_1 ^ " = " ^ show_iso omega ^ " " ^ show_pat p_2
       ^ " in " ^ show_expr e
   | Let { p_1; omega; p_2; e } ->
@@ -161,10 +161,10 @@ and show_iso : iso -> string = function
   | Fix { phi; omega; _ } -> "fix " ^ phi ^ ". " ^ show_iso omega
   | Lambda { psi; omega; _ } -> "fun " ^ psi ^ " -> " ^ show_iso omega
   | Named omega -> omega
-  | App { omega_1; omega_2 = (Named _ | Invert _) as omega_2 } ->
+  | App { omega_1; omega_2 = Named _ as omega_2 } ->
       show_iso omega_1 ^ " " ^ show_iso omega_2
   | App { omega_1; omega_2 } -> show_iso omega_1 ^ " {" ^ show_iso omega_2 ^ "}"
-  | Invert ((Named _ | Invert _) as omega) -> "invert " ^ show_iso omega
+  | Invert (Named _ as omega) -> "invert " ^ show_iso omega
   | Invert omega -> "invert {" ^ show_iso omega ^ "}"
 
 let rec show_term : term -> string =

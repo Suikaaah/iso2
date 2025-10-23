@@ -1,4 +1,4 @@
-(* This file was auto-generated based on "parser.messages". *)
+(* This file was auto-generated based on "./messages". *)
 
 (* Please note that the function [message] can raise [Not_found]. *)
 

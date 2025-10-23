@@ -123,10 +123,10 @@ param:
 iso_nogroup:
   | LBRACE; omega = iso; RBRACE; { omega }
   | x = VAR; { Named x }
-  | x = CTOR; { Named x }
-  | INVERT; omega = iso_nogroup; { Invert omega }
+  | x = CTOR; { let lmao : iso = Named x in lmao }
 
 iso:
+  | INVERT; omega = iso_nogroup; { Invert omega }
   | FUNCTION; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
   | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
   | FUN; params = param+; ARROW; omega = iso; { lambdas_of_params params omega }

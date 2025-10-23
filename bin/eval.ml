@@ -155,6 +155,8 @@ let rec eval (t : term) : term myresult =
               subst ~from ~into:(term_of_value into) ~what:t)
             (term_of_expr e) unified
           |> eval
+      | Named x when is_variable x |> not ->
+          Ok (App { omega = Named x; t = term_of_value v' })
       | _ -> Ok t
     end
   | Let { p; t_1; t_2 } -> begin

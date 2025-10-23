@@ -1,5 +1,3 @@
-type 'a t = A | B of 'a
-
 let iso map f = function
   | None   <-> None
   | Some x <-> let y = f x in Some y
@@ -12,5 +10,9 @@ in
 let a = map swap None in
 let b = map swap (Some (3, 4)) in
 
-[B (B (a, b)); A]
+let iso id = function x <-> x in
+
+let iso f = function (a, (b, c), d) <-> (a, b, c, d) in
+
+(a, b)
 
