@@ -96,9 +96,13 @@ let rec show_base_type : base_type -> string = function
 
 let rec show_iso_type : iso_type -> string = function
   | BiArrow { a; b } -> show_base_type a ^ " <-> " ^ show_base_type b
-  | Arrow { t_1 = Arrow _ as t_1; t_2 } ->
-      "(" ^ show_iso_type t_1 ^ ") -> " ^ show_iso_type t_2
-  | Arrow { t_1; t_2 } -> show_iso_type t_1 ^ " -> " ^ show_iso_type t_2
+  | Arrow { t_1 = Var _ as t_1; t_2 = BiArrow _ as t_2 } ->
+      show_iso_type t_1 ^ " -> (" ^ show_iso_type t_2 ^ ")"
+  | Arrow { t_1 = Var _ as t_1; t_2 } ->
+      show_iso_type t_1 ^ " -> " ^ show_iso_type t_2
+  | Arrow { t_1; t_2 = BiArrow _ as t_2 } ->
+      "(" ^ show_iso_type t_1 ^ ") -> (" ^ show_iso_type t_2 ^ ")"
+  | Arrow { t_1; t_2 } -> "(" ^ show_iso_type t_1 ^ ") -> " ^ show_iso_type t_2
   | Var x -> "'" ^ string_of_int x
 
 let rec show_value : value -> string =
