@@ -313,8 +313,8 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
   in
   let rec check_in_expr : Types.expr -> _ = function
     | Types.Let { p_1; p_2; e; _ } ->
-        let** _ = collect_in_pat p_1 in
         let** _ = check_in_pat p_2 in
+        let** _ = collect_in_pat p_1 in
         check_in_expr e
     | Types.Value v -> check_in_value v
   in

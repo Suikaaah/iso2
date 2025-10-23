@@ -1,4 +1,8 @@
-let iso f = function (a, (b, c), d) <-> (a, b, c, d) in
+let iso f = function
+  | (Some 0, Some False) <-> (0, 0)
+  | (Some x, None) <-> (x, 1)
+  | (None, None) <-> (1, 2)
+in
 
-f
+f (None, None)
 

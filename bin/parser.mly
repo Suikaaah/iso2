@@ -98,7 +98,9 @@ value_nogroup:
 
 value:
   | c = CTOR; v = value_nogroup; { Cted { c ; v } }
-  | v_1 = value_nogroup; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
+
+  (* weak r-associativity *)
+  | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
   | v = value_nogroup; { v }
 
 pat:
@@ -110,9 +112,7 @@ expr:
   | LET; p_1 = pat; EQUAL; omega = iso; p_2 = pat; IN; e = expr; { Let { p_1; omega; p_2; e } }
   | LET; p_1 = pat; EQUAL; MATCH; p_2 = pat; WITH;
     PIPE?; p = separated_nonempty_list(PIPE, biarrowed); IN; e = expr;
-    {
-      Let { p_1; omega = Pairs p; p_2; e }
-    }
+    { Let { p_1; omega = Pairs p; p_2; e } }
 
 biarrowed:
   | v = value; BIARROW; e = expr; { (v, e) }
@@ -163,5 +163,6 @@ term:
       LetIso { phi; omega = lambdas_of_params params omega; t }
     }
 
-  | t_1 = term_nogroup; CONS; t_2 = term; { App { omega = Named "Cons"; t = Tuple [t_1; t_2] } }
+  (* weak r-associativity *)
+  | t_1 = term; CONS; t_2 = term; { App { omega = Named "Cons"; t = Tuple [t_1; t_2] } }
   | t = term_nogroup; { t }

@@ -52,5 +52,8 @@ in
 
 let iso unitgen = function x <-> (x, ()) in
 
-unitgen (Some 3)
+let wtf = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
 
+let iso f = function x <-> (x, None) in
+
+f wtf
