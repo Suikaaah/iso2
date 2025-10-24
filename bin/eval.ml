@@ -108,26 +108,11 @@ let rec value_of_term (t : term) : value myresult =
 
 let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
   let vv ((u, v) : value * value) : bool =
-    let rec setup : value -> _ = function
-      | Unit -> StrMap.empty
-      | Named x when is_variable x -> StrMap.singleton x None
-      | Named _ -> StrMap.empty
-      | Cted { v; _ } -> setup v
-      | Tuple l ->
-          List.map setup l
-          |> List.fold_left
-               (StrMap.union (fun _ _ _ -> Some (Some None)))
-               StrMap.empty
-    in
-
-    let map_u = setup u |> ref in
+    let map_u = build_storage u |> ref in
 
     let matches x v map =
       match StrMap.find_opt x !map with
-      (* unreachable *)
-      | None -> true
-      (* one occurrence *)
-      | Some None -> true
+      | None | Some None -> true
       (* more than one but not memoed *)
       | Some (Some None) ->
           map := StrMap.add x (Some (Some v)) !map;

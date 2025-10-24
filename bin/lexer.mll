@@ -1,16 +1,24 @@
 {
-open Lexing
-open Parser
+  open Lexing
+  open Parser
+
+  let next_line lexbuf =
+    let pos = lexbuf.lex_curr_p in
+    lexbuf.lex_curr_p <-
+      { pos with pos_bol = lexbuf.lex_curr_pos; pos_lnum = pos.pos_lnum + 1 }
 }
 
-let white = [' ' '\t' '\r' '\n']+
+let white = [' ' '\t']+
+let newline = '\r' | '\n' | "\r\n"
 let string = [^ '(' ')' '[' ']' '{' '}' '*' '|' '.' ',' ';' ':' '-' '<' '>' '=' ' ' '\t' '\r' '\n']+
 let nat = ['0' '1' '2' '3' '4' '5' '6' '7' '8' '9']+
+let comment = "(*" ([^'*'] | '*' [^')'])* "*)"
 
-rule token = parse
+rule read = parse
   | eof { EOF }
-  | "(*" ([^'*'] | '*' [^')'])* "*)" { token lexbuf }
-  | white { token lexbuf }
+  | white { read lexbuf }
+  | newline { next_line lexbuf; read lexbuf }
+  | comment { read lexbuf }
   | "(" { LPAREN }
   | ")" { RPAREN }
   | "[" { LBRACKET }
@@ -48,3 +56,15 @@ rule token = parse
       else CTOR x
     }
 
+{
+  let string_of_lb lexbuf =
+    let pos = lexbuf.lex_curr_p in
+    Printf.sprintf "line %d, character %d" pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
+
+  let parse_res lexbuf =
+    try Ok (program read lexbuf) with
+    | Error -> Error (string_of_lb lexbuf)
+
+  let parse str = from_string str |> parse_res
+  let parse_stdlib str = from_string str |> stdlib read
+}

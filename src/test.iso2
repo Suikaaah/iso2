@@ -1,4 +1,8 @@
-let iso f = function (x, x, y) <-> (x, x, y) in
+let rec double = function
+  | [] <-> []
+  | x :: xs <->
+      let xs' = double xs in
+      x :: x :: xs'
+in
 
-f (3, 3, 4)
-
+double [3; 1; 2]

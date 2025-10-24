@@ -1,5 +1,6 @@
 let iso swap = function (x, y) <-> (y, x) in
 let iso id = function x <-> x in
+let iso dup = function x <-> (x, x) in
 
 let rec list_map f = function
   | h' :: t' <->
@@ -52,10 +53,5 @@ in
 
 let iso unitgen = function x <-> (x, ()) in
 
-let wtf = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
+S 3 :: S 4 :: S 5 :: [let x = 2 in x]
 
-let iso f = function x <-> (x, None) in
-
-let iso dup = function x <-> (x, x) in
-
-a

@@ -230,3 +230,14 @@ let rec show_term : term -> string = function
 
 let rec nat_of_int (n : int) : value =
   if n < 1 then Named "Z" else Cted { c = "S"; v = nat_of_int (n - 1) }
+
+let rec build_storage : value -> 'a option option StrMap.t = function
+  | Unit -> StrMap.empty
+  | Named x when is_variable x -> StrMap.singleton x None
+  | Named _ -> StrMap.empty
+  | Cted { v; _ } -> build_storage v
+  | Tuple l ->
+      List.map build_storage l
+      |> List.fold_left
+           (StrMap.union (fun _ _ _ -> Some (Some None)))
+           StrMap.empty

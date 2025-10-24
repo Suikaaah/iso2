@@ -1,3 +1,5 @@
+open Util
+
 type base_type =
   | Unit
   | Product of base_type list
@@ -63,3 +65,4 @@ val show_pairs : (value * expr) list -> string
 val show_iso : iso -> string
 val show_term : term -> string
 val nat_of_int : int -> value
+val build_storage : value -> 'a option option StrMap.t
