@@ -114,6 +114,9 @@ pat:
 expr:
   | v = value; { Value v }
   | LET; p_1 = pat; EQUAL; omega = iso; p_2 = pat; IN; e = expr; { Let { p_1; omega; p_2; e } }
+  | LET; p_1 = pat; EQUAL; p_2_l = pat; CONS; p_2_r = pat; IN; e = expr;
+    { Let { p_1; omega = Named "Cons"; p_2 = Tuple [p_2_l; p_2_r]; e } }
+
   | LET; p_1 = pat; EQUAL; MATCH; p_2 = pat; WITH;
     PIPE?; p = separated_nonempty_list(PIPE, biarrowed); IN; e = expr;
     { Let { p_1; omega = Pairs p; p_2; e } }

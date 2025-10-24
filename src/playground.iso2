@@ -51,7 +51,55 @@ let iso compose g f = function
       x''
 in
 
-let iso unitgen = function x <-> (x, ()) in
+(* relaxed restriction *)
+let rec double = function
+  | [] <-> []
+  | x :: xs <->
+      let xs' = double xs in
+      x :: x :: xs'
+in
 
-S 3 :: S 4 :: S 5 :: [let x = 2 in x]
+let hi = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
 
+let rec len = function
+  | [] <-> ([], 0)
+  | h :: t <->
+      let (t', n) = len t in
+      (h :: t', S n)
+in
+
+let rec snoc' = function
+  | ([], x, 0) <-> ([x], x, 0)
+  | (h :: t, x, S n) <->
+      let (t', x', n') = snoc' (t, x, n) in
+      (h :: t', x', S n')
+in
+
+let iso snoc = function
+  | (x, y) <->
+      let (x', n) = len x in
+      let (x'', y', n') = snoc' (x', y, n) in
+      let n'' = S n' in
+      let z = invert len (x'', n'') in
+      (z, y')
+in
+
+let rec rev_aux = function
+  | ([], y) <-> ([], y)
+  | (h :: t, y) <->
+      let (h_1, h_2) = dup h in
+      let c = h_2 :: y in
+      let (t_1, t_2) = rev_aux (t, c) in
+      (h_1 :: t_1, t_2)
+in
+
+let iso with_nil = function x <-> (x, []) in
+
+let iso rev = function
+  | x <->
+      let l = with_nil x in
+      let (t_1, t_2) = rev_aux l in
+      (t_1, t_2)
+in
+
+()

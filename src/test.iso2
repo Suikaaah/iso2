@@ -1,9 +1,1 @@
-let rec double = function
-  | [] <-> []
-  | x :: xs <->
-      let xs' = double xs in
-      x :: x :: xs'
-in
-
-double [3; 1; 2]
-
+()
