@@ -226,34 +226,80 @@ let rec extract_named (gen : generator) (v : Types.value) : context =
   | Cted { v; _ } -> extract_named gen v
   | Tuple l -> union_list (List.map (extract_named gen) l)
 
-let rec is_orthogonal (u : Types.value) (v : Types.value) : string option =
+let rec is_orthogonal (u : Types.value) (v : Types.value) : unit myresult =
+  let rec setup : Types.value -> _ = function
+    | Unit -> StrMap.empty
+    | Named x when is_variable x -> StrMap.singleton x None
+    | Named _ -> StrMap.empty
+    | Cted { v; _ } -> setup v
+    | Tuple l ->
+        List.map setup l
+        |> List.fold_left
+             (StrMap.union (fun _ _ _ -> Some (Some None)))
+             StrMap.empty
+  in
+
+  let map_u = setup u |> ref in
+  let map_v = setup v |> ref in
+
+  let mult_occ x map =
+    StrMap.find_opt x map |> Option.map Option.is_some
+    (* unreachable *) |> Option.value ~default:false
+  in
+
+  let fatal x = Error (`Fatal x) in
+  let idk x = Error (`Idk x) in
+  let is_fatal = function Error (`Fatal _) -> true | _ -> false in
+  let is_idk = function Error (`Idk _) -> true | _ -> false in
+
+  let is_okay x v map =
+    match StrMap.find_opt x !map with
+    | None -> Ok ()
+    (* one occurrence *)
+    | Some None -> Ok ()
+    (* more than one but not memoed *)
+    | Some (Some None) ->
+        map := StrMap.add x (Some (Some v)) !map;
+        Ok ()
+    (* memoed *)
+    | Some (Some (Some v')) ->
+        is_orthogonal v v' |> Result.map_error (fun x -> `Fatal x)
+  in
+
   let msg =
     lazy
-      (Some
-         (Types.show_value u ^ " and " ^ Types.show_value v
-        ^ " are not orthogonal"))
+      (Types.show_value u ^ " and " ^ Types.show_value v ^ " are not orthogonal"
+      |> idk)
   in
-  match (u, v) with
-  | Unit, Unit -> Lazy.force msg
-  | Named x, _ when is_variable x -> Lazy.force msg
-  | _, Named x when is_variable x -> Lazy.force msg
-  | Named x, Named y when x = y -> Lazy.force msg
-  | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
-      if c_1 = c_2 then is_orthogonal v_1 v_2 else None
-  | Tuple l, Tuple r ->
-      let combined = combine l r in
-      begin
-        match combined with
-        | Some combined ->
-            let mapped = List.map (fun (u, v) -> is_orthogonal u v) combined in
-            let is_error = List.for_all Option.is_some mapped in
-            if is_error then Lazy.force msg else None
-        | None ->
-            Some
-              ("arity mismatch: " ^ Types.show_value u ^ " and "
-             ^ Types.show_value v)
-      end
-  | _ -> None
+
+  let rec body (u : Types.value) (v : Types.value) =
+    match (u, v) with
+    | Unit, Unit -> Lazy.force msg
+    | Named x, _ when is_variable x ->
+        if mult_occ x !map_u then is_okay x v map_u else Lazy.force msg
+    | _, Named x when is_variable x ->
+        if mult_occ x !map_v then is_okay x u map_v else Lazy.force msg
+    | Named x, Named y when x = y -> Lazy.force msg
+    | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
+        if c_1 = c_2 then body v_1 v_2 else Ok ()
+    | Tuple l, Tuple r ->
+        let combined = combine l r in
+        begin
+          match combined with
+          | Some combined ->
+              let mapped = List.map (fun (u, v) -> body u v) combined in
+              let all_idk = List.for_all is_idk mapped in
+              let exists_fatal = List.exists is_fatal mapped in
+              let is_error = all_idk || exists_fatal in
+              if is_error then Lazy.force msg else Ok ()
+          | None ->
+              "arity mismatch: " ^ Types.show_value u ^ " and "
+              ^ Types.show_value v
+              |> fatal
+        end
+    | _ -> Ok ()
+  in
+  body u v |> Result.map_error (function `Fatal e | `Idk e -> e)
 
 let invert_pairs (pairs : (Types.value * Types.expr) list) :
     (Types.value * Types.expr) list =
@@ -269,12 +315,11 @@ let invert_pairs (pairs : (Types.value * Types.expr) list) :
 
 let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
   let set = ref StrSet.empty in
+  let add x = set := StrSet.add x !set in
   let add_unique x =
     match StrSet.find_opt x !set with
     | Some _ -> Error (x ^ " is used more than once")
-    | None ->
-        set := StrSet.add x !set;
-        Ok ()
+    | None -> Ok (add x)
   in
   let ensure_existence x =
     match StrSet.find_opt x !set with
@@ -283,12 +328,10 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
   in
   let rec collect_in_value = function
     | Types.Cted { v; _ } -> collect_in_value v
-    | Types.Unit -> Ok ()
-    | Types.Named x when is_variable x -> add_unique x
-    | Types.Named _ -> Ok ()
-    | Types.Tuple l ->
-        let++ _ = List.map collect_in_value l |> bind_all in
-        ()
+    | Types.Unit -> ()
+    | Types.Named x when is_variable x -> add x
+    | Types.Named _ -> ()
+    | Types.Tuple l -> List.iter collect_in_value l
   in
   let rec check_in_value = function
     | Types.Cted { v; _ } -> check_in_value v
@@ -318,7 +361,7 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
         check_in_expr e
     | Types.Value v -> check_in_value v
   in
-  let** () = collect_in_value v in
+  collect_in_value v;
   check_in_expr e
 
 let rec infer_pair (gen : generator) (ctx : context)
@@ -385,10 +428,8 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
         in
         let left = List.map (fun (v, _) -> v) p in
         let right = List.map (fun (_, e) -> Types.value_of_expr e) p in
-        let opt =
-          (for_all_pairs is_orthogonal left, for_all_pairs is_orthogonal right)
-        in
-        match opt with None, None -> Ok () | Some e, _ | _, Some e -> Error e
+        let** () = for_all_pairs is_orthogonal left in
+        for_all_pairs is_orthogonal right
       in
       let infer p =
         let++ pairs = List.map (infer_pair gen ctx) p |> bind_all in

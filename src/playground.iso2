@@ -56,4 +56,6 @@ let wtf = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
 
 let iso f = function x <-> (x, None) in
 
-f wtf
+let iso dup = function x <-> (x, x) in
+
+a

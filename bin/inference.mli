@@ -42,7 +42,7 @@ val generalize_iso :
   equation list -> context -> string -> any -> context myresult
 
 val extract_named : generator -> Types.value -> context
-val is_orthogonal : Types.value -> Types.value -> string option
+val is_orthogonal : Types.value -> Types.value -> unit myresult
 
 val invert_pairs :
   (Types.value * Types.expr) list -> (Types.value * Types.expr) list

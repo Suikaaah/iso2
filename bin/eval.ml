@@ -107,16 +107,48 @@ let rec value_of_term (t : term) : value myresult =
   | _ -> Error ("unreachable (unreduced term: " ^ show_term t ^ ")")
 
 let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
-  let rec vv : value * value -> bool = function
-    | Unit, Unit -> true
-    | Named x, _ when is_variable x -> true
-    | Named x, Named y -> x = y
-    | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
-        c_1 = c_2 && vv (v_1, v_2)
-    | Tuple l, Tuple r ->
-        Option.map (List.for_all vv) (combine l r)
-        |> Option.value ~default:false
-    | _ -> false
+  let vv ((u, v) : value * value) : bool =
+    let rec setup : value -> _ = function
+      | Unit -> StrMap.empty
+      | Named x when is_variable x -> StrMap.singleton x None
+      | Named _ -> StrMap.empty
+      | Cted { v; _ } -> setup v
+      | Tuple l ->
+          List.map setup l
+          |> List.fold_left
+               (StrMap.union (fun _ _ _ -> Some (Some None)))
+               StrMap.empty
+    in
+
+    let map_u = setup u |> ref in
+
+    let matches x v map =
+      match StrMap.find_opt x !map with
+      (* unreachable *)
+      | None -> true
+      (* one occurrence *)
+      | Some None -> true
+      (* more than one but not memoed *)
+      | Some (Some None) ->
+          map := StrMap.add x (Some (Some v)) !map;
+          true
+      (* memoed *)
+      | Some (Some (Some v')) -> v = v'
+    in
+
+    let rec body ((u, v) : value * value) : bool =
+      match (u, v) with
+      | Unit, Unit -> true
+      | Named x, _ when is_variable x -> matches x v map_u
+      | Named x, Named y -> x = y
+      | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
+          c_1 = c_2 && body (v_1, v_2)
+      | Tuple l, Tuple r ->
+          Option.map (List.for_all body) (combine l r)
+          |> Option.value ~default:false
+      | _ -> false
+    in
+    body (u, v)
   in
   List.find_opt (fun (v', _) -> vv (v', v)) l
 

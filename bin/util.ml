@@ -5,8 +5,12 @@ type 'a myresult = ('a, string) Result.t
 
 let ( let* ) : 'a option -> ('a -> 'b option) -> 'b option = Option.bind
 let ( let+ ) (x : 'a option) (f : 'a -> 'b) : 'b option = Option.map f x
-let ( let** ) : 'a myresult -> ('a -> 'b myresult) -> 'b myresult = Result.bind
-let ( let++ ) (x : 'a myresult) (f : 'a -> 'b) : 'b myresult = Result.map f x
+
+let ( let** ) : ('a, 'b) result -> ('a -> ('c, 'b) result) -> ('c, 'b) result =
+  Result.bind
+
+let ( let++ ) (x : ('a, 'b) result) (f : 'a -> 'c) : ('c, 'b) result =
+  Result.map f x
 
 let rec bind_all : 'a myresult list -> 'a list myresult = function
   | Error e :: _ -> Error e
@@ -35,14 +39,12 @@ let is_variable (value : string) : bool =
 
 let is_type_variable : string -> bool = String.starts_with ~prefix:"'"
 
-let rec for_all_pairs (f : 'a -> 'a -> 'b option) : 'a list -> 'b option =
-  function
-  | [] -> None
-  | hd :: tl -> begin
-      match List.find_map (f hd) tl with
-      | Some x -> Some x
-      | None -> for_all_pairs f tl
-    end
+let rec for_all_pairs (f : 'a -> 'a -> unit myresult) : 'a list -> unit myresult
+    = function
+  | [] -> Ok ()
+  | hd :: tl ->
+      let** _ = List.map (f hd) tl |> bind_all in
+      for_all_pairs f tl
 
 let union_nodup (l : 'a StrMap.t) (r : 'a StrMap.t) : 'a StrMap.t myresult =
   let msg = ref None in

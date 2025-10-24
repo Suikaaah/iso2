@@ -1,3 +1,5 @@
+type err = Static of string | Dynamic of string
+
 let read_program path =
   let read_to_string path = open_in path |> In_channel.input_all in
   let stdlib = read_to_string "src/stdlib.iso2" in
@@ -7,21 +9,28 @@ let read_program path =
   with Parser.Error i -> Error (Messages.message i)
 
 let report name e = Util.boldred name ^ ": " ^ e
+let into_static r = Result.map_error (fun e -> Static e) r
+let into_dynamic r = Result.map_error (fun e -> Dynamic e) r
 
 let () =
   let open Types in
   let open Inference in
   let open Util in
   let res =
-    let** { t; ts } = read_program Sys.argv.(1) in
+    let** { t; ts } = read_program Sys.argv.(1) |> into_static in
     (* show_term t |> print_endline; *)
     let gen = { i = 0 } in
-    let** ctx = build_ctx gen ts in
-    let** inferred = Result.bind (infer_term t gen ctx) finalize in
+    let** ctx = build_ctx gen ts |> into_static in
+    let** inferred =
+      Result.bind (infer_term t gen ctx) finalize |> into_static
+    in
     (* let** base_type = base_of_any inferred in *)
-    let++ evaluated = Eval.eval t in
+    let++ evaluated = Eval.eval t |> into_dynamic in
     evaluated |> show_term |> print_endline;
     (* ": " ^ show_base_type base_type |> print_endline *)
     ": " ^ show_any inferred |> print_endline
   in
-  match res with Ok () -> () | Error e -> report "Error" e |> print_endline
+  match res with
+  | Ok () -> ()
+  | Error (Static e) -> report "Error" e |> print_endline
+  | Error (Dynamic e) -> report "Runtime Error" e |> print_endline
