@@ -227,37 +227,32 @@ let rec extract_named (gen : generator) (v : Types.value) : context =
   | Tuple l -> union_list (List.map (extract_named gen) l)
 
 let rec is_orthogonal (u : Types.value) (v : Types.value) : unit myresult =
-  let map_u = Types.build_storage u |> ref in
-  let map_v = Types.build_storage v |> ref in
-
-  let fatal x = Error (`Fatal x) in
-  let idk x = Error (`Idk x) in
-  let is_fatal = function Error (`Fatal _) -> true | _ -> false in
-  let is_idk = function Error (`Idk _) -> true | _ -> false in
+  let map_u = Types.build_storage [] u |> ref in
+  let map_v = Types.build_storage [] v |> ref in
 
   let msg =
     lazy
-      (Types.show_value u ^ " and " ^ Types.show_value v ^ " are not orthogonal")
+      (Error
+         (Types.show_value u ^ " and " ^ Types.show_value v
+        ^ " are not orthogonal"))
   in
 
-  let is_okay x v map =
+  let check x v map =
     match StrMap.find_opt x !map with
-    | None | Some None -> Lazy.force msg |> idk
-    (* more than one but not memoed *)
-    | Some (Some None) ->
-        map := StrMap.add x (Some (Some v)) !map;
-        Ok ()
-    (* memoed *)
-    | Some (Some (Some v')) ->
-        is_orthogonal v v' |> Result.map_error (fun x -> `Fatal x)
+    | None | Some None -> Lazy.force msg
+    (* more than one occurrence *)
+    | Some (Some l) ->
+        let extended = v :: l in
+        map := StrMap.add x (Some extended) !map;
+        if exists_pairs is_orthogonal extended then Ok () else Lazy.force msg
   in
 
   let rec body (u : Types.value) (v : Types.value) =
     match (u, v) with
-    | Unit, Unit -> Lazy.force msg |> idk
-    | Named x, _ when is_variable x -> is_okay x v map_u
-    | _, Named x when is_variable x -> is_okay x u map_v
-    | Named x, Named y when x = y -> Lazy.force msg |> idk
+    | Unit, Unit -> Lazy.force msg
+    | Named x, _ when is_variable x -> check x v map_u
+    | _, Named x when is_variable x -> check x u map_v
+    | Named x, Named y when x = y -> Lazy.force msg
     | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
         if c_1 = c_2 then body v_1 v_2 else Ok ()
     | Tuple l, Tuple r ->
@@ -266,19 +261,13 @@ let rec is_orthogonal (u : Types.value) (v : Types.value) : unit myresult =
           match combined with
           | Some combined ->
               let mapped = List.map (fun (u, v) -> body u v) combined in
-              let exists_fatal = List.exists is_fatal mapped in
-              if exists_fatal then Lazy.force msg |> fatal
-              else
-                let all_idk = List.for_all is_idk mapped in
-                if all_idk then Lazy.force msg |> idk else Ok ()
-          | None ->
-              "arity mismatch: " ^ Types.show_value u ^ " and "
-              ^ Types.show_value v
-              |> fatal
+              let is_error = List.for_all Result.is_error mapped in
+              if is_error then Lazy.force msg else Ok ()
+          | None -> Error "unreachable (due to type inference)"
         end
     | _ -> Ok ()
   in
-  body u v |> Result.map_error (function `Fatal e | `Idk e -> e)
+  body u v
 
 let invert_pairs (pairs : (Types.value * Types.expr) list) :
     (Types.value * Types.expr) list =

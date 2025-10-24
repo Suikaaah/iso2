@@ -108,12 +108,12 @@ let rec value_of_term (t : term) : value myresult =
 
 let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
   let vv ((u, v) : value * value) : bool =
-    let map_u = build_storage u |> ref in
+    let map_u = build_storage None u |> ref in
 
     let matches x v map =
       match StrMap.find_opt x !map with
       | None | Some None -> true
-      (* more than one but not memoed *)
+      (* more than one occurrence but not memoed *)
       | Some (Some None) ->
           map := StrMap.add x (Some (Some v)) !map;
           true

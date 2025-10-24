@@ -13,6 +13,7 @@ val extend : 'a StrMap.t -> (string * 'a) list -> 'a StrMap.t
 val is_variable : string -> bool
 val is_type_variable : string -> bool
 val for_all_pairs : ('a -> 'a -> unit myresult) -> 'a list -> unit myresult
+val exists_pairs : ('a -> 'a -> unit myresult) -> 'a list -> bool
 val union_nodup : 'a StrMap.t -> 'a StrMap.t -> 'a StrMap.t myresult
 val union : weak:'a StrMap.t -> strong:'a StrMap.t -> 'a StrMap.t
 val union_list : 'a StrMap.t list -> 'a StrMap.t

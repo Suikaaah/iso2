@@ -6,3 +6,4 @@ let rec double = function
 in
 
 double [3; 1; 2]
+

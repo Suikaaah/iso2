@@ -46,6 +46,13 @@ let rec for_all_pairs (f : 'a -> 'a -> unit myresult) : 'a list -> unit myresult
       let** _ = List.map (f hd) tl |> bind_all in
       for_all_pairs f tl
 
+let rec exists_pairs (f : 'a -> 'a -> unit myresult) : 'a list -> bool =
+  function
+  | [] -> false
+  | hd :: tl ->
+      let exists = List.exists (fun x -> f hd x |> Result.is_ok) tl in
+      if exists then true else exists_pairs f tl
+
 let union_nodup (l : 'a StrMap.t) (r : 'a StrMap.t) : 'a StrMap.t myresult =
   let msg = ref None in
   let merger key _ y =
