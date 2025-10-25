@@ -51,16 +51,6 @@ iso compose g f = function
       x''
 in
 
-(* relaxed restriction *)
-iso rec double = function
-  | [] <-> []
-  | x :: xs <->
-      let xs' = double xs in
-      x :: x :: xs'
-in
-
-let hi = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
-
 iso rec len = function
   | [] <-> ([], 0)
   | h :: t <->
@@ -102,4 +92,14 @@ iso rev = function
       (t_1, t_2)
 in
 
-()
+let hi = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
+
+(* relaxed restriction *)
+iso rec double = function
+  | [] <-> []
+  | x :: xs <->
+      let xs' = double xs in
+      x :: x :: xs'
+in
+
+invert double [1; 1; 4; 4; 3]

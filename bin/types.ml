@@ -188,6 +188,11 @@ and show_iso : iso -> string = function
   | Invert (Named _ as omega) -> "invert " ^ show_iso omega
   | Invert omega -> "invert {" ^ show_iso omega ^ "}"
 
+let show_pairs_lhs (pairs : (value * expr) list) : string =
+  List.fold_left
+    (fun acc (v, _) -> acc ^ "\n  | " ^ show_value v ^ " <-> ...")
+    "function" pairs
+
 let rec show_term : term -> string = function
   | Unit -> "()"
   | Named "Z" -> "0"

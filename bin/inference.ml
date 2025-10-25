@@ -226,105 +226,6 @@ let rec extract_named (gen : generator) (v : Types.value) : context =
   | Cted { v; _ } -> extract_named gen v
   | Tuple l -> union_list (List.map (extract_named gen) l)
 
-let rec is_locally_orthogonal (u : Types.value) (v : Types.value) :
-    unit myresult =
-  let map_u = Types.build_storage [] u |> ref in
-  let map_v = Types.build_storage [] v |> ref in
-
-  let msg =
-    lazy
-      (Error
-         (Types.show_value u ^ " and " ^ Types.show_value v
-        ^ " are not orthogonal"))
-  in
-
-  let rec occurs x : Types.value -> bool = function
-    | Unit -> false
-    | Named y -> x = y
-    | Cted { v; _ } -> occurs x v
-    | Tuple l -> List.exists (occurs x) l
-  in
-
-  let check x v map =
-    let u : Types.value = Named x in
-    if occurs x v && u <> v then Ok ()
-    else
-      match StrMap.find_opt x !map with
-      | None | Some None -> Lazy.force msg
-      (* more than one occurrence *)
-      | Some (Some l) ->
-          let extended = v :: l in
-          map := StrMap.add x (Some extended) !map;
-          if exists_pairs is_locally_orthogonal extended then Ok ()
-          else Lazy.force msg
-  in
-
-  let rec body (u : Types.value) (v : Types.value) =
-    match (u, v) with
-    | Unit, Unit -> Lazy.force msg
-    | Named x, _ when is_variable x -> check x v map_u
-    | _, Named x when is_variable x -> check x u map_v
-    | Named x, Named y when x = y -> Lazy.force msg
-    | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
-        if c_1 = c_2 then body v_1 v_2 else Ok ()
-    | Tuple l, Tuple r ->
-        let combined = combine l r in
-        begin
-          match combined with
-          | Some combined ->
-              let mapped = List.map (fun (u, v) -> body u v) combined in
-              let is_error = List.for_all Result.is_error mapped in
-              if is_error then Lazy.force msg else Ok ()
-          | None -> Error "unreachable (due to type inference)"
-        end
-    | _ -> Ok ()
-  in
-  body u v
-
-let is_orthogonal (u : Types.value) (v : Types.value) : unit myresult =
-  let map_u = Types.build_storage [] u |> ref in
-  let map_v = Types.build_storage [] v |> ref in
-
-  let msg =
-    lazy
-      (Error
-         (Types.show_value u ^ " and " ^ Types.show_value v
-        ^ " are not orthogonal"))
-  in
-
-  let check x v map =
-    match StrMap.find_opt x !map with
-    | None | Some None -> Lazy.force msg
-    (* more than one occurrence *)
-    | Some (Some l) ->
-        let extended = v :: l in
-        map := StrMap.add x (Some extended) !map;
-        if exists_pairs is_locally_orthogonal extended then Ok ()
-        else Lazy.force msg
-  in
-
-  let rec body (u : Types.value) (v : Types.value) =
-    match (u, v) with
-    | Unit, Unit -> Lazy.force msg
-    | Named x, _ when is_variable x -> check x v map_u
-    | _, Named x when is_variable x -> check x u map_v
-    | Named x, Named y when x = y -> Lazy.force msg
-    | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
-        if c_1 = c_2 then body v_1 v_2 else Ok ()
-    | Tuple l, Tuple r ->
-        let combined = combine l r in
-        begin
-          match combined with
-          | Some combined ->
-              let mapped = List.map (fun (u, v) -> body u v) combined in
-              let is_error = List.for_all Result.is_error mapped in
-              if is_error then Lazy.force msg else Ok ()
-          | None -> Error "unreachable (due to type inference)"
-        end
-    | _ -> Ok ()
-  in
-  body u v
-
 let invert_pairs (pairs : (Types.value * Types.expr) list) :
     (Types.value * Types.expr) list =
   let rec invert_expr (e : Types.expr) (acc : Types.expr) =
@@ -441,19 +342,18 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
   | Pairs p ->
       let check_orth p =
         let** _ =
+          let rmap v e x =
+            x ^ " in branch " ^ Types.show_value v ^ " <-> " ^ Types.show_expr e
+          in
           List.map
-            (fun (v, e) ->
-              check_pair (v, e)
-              |> Result.map_error (fun x ->
-                     x ^ " in pair " ^ Types.show_value v ^ " <-> "
-                     ^ Types.show_expr e))
+            (fun (v, e) -> check_pair (v, e) |> Result.map_error (rmap v e))
             p
           |> bind_all
         in
         let left = List.map (fun (v, _) -> v) p in
         let right = List.map (fun (_, e) -> Types.value_of_expr e) p in
-        let** () = for_all_pairs is_orthogonal left in
-        for_all_pairs is_orthogonal right
+        let** () = for_all_pairs Ortho.is_orthogonal left in
+        for_all_pairs Ortho.is_orthogonal right
       in
       let infer p =
         let++ pairs = List.map (infer_pair gen ctx) p |> bind_all in

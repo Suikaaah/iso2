@@ -1,8 +1,8 @@
 type ('l, 'r) either = L of 'l | R of 'r
 
 iso f = function
-  | (y, y) <-> (y, False)
-  | (S x, x) <-> (x, True)
+  | (x, x) <-> (x, False)
+  | (L x, L (S x)) <-> (L x, True)
 in
 
 f

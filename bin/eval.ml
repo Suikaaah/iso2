@@ -160,11 +160,11 @@ let rec eval (t : term) : term myresult =
       match omega with
       | Pairs p ->
           let** v, e =
-            match_pair p v'
-            |> Option.to_result
-                 ~none:
-                   ("no matching pair found: " ^ show_value v' ^ " |>\n"
-                  ^ show_pairs p)
+            let msg =
+              lazy
+                ("out of domain: " ^ show_value v' ^ " |> " ^ show_pairs_lhs p)
+            in
+            match_pair p v' |> Option.to_result ~none:(Lazy.force msg)
           in
           let unified = unify_value v v' in
           List.fold_left

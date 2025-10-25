@@ -43,28 +43,8 @@ let rec for_all_pairs (f : 'a -> 'a -> unit myresult) : 'a list -> unit myresult
     = function
   | [] -> Ok ()
   | hd :: tl ->
-      let** _ =
-        List.map
-          (fun x ->
-            match (f hd x, f x hd) with
-            | Error e, Error _ -> Error e
-            | _ -> Ok ())
-          tl
-        |> bind_all
-      in
+      let** _ = List.map (f hd) tl |> bind_all in
       for_all_pairs f tl
-
-let rec exists_pairs (f : 'a -> 'a -> unit myresult) : 'a list -> bool =
-  function
-  | [] -> false
-  | hd :: tl ->
-      let exists =
-        List.exists
-          (fun x ->
-            match (f hd x, f x hd) with Error _, Error _ -> false | _ -> true)
-          tl
-      in
-      if exists then true else exists_pairs f tl
 
 let union_nodup (l : 'a StrMap.t) (r : 'a StrMap.t) : 'a StrMap.t myresult =
   let msg = ref None in
