@@ -10,9 +10,11 @@
 
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
-let string = [^ '(' ')' '[' ']' '{' '}' '*' '|' '.' ',' ';' ':' '-' '<' '>' '=' ' ' '\t' '\r' '\n']+
-let nat = ['0' '1' '2' '3' '4' '5' '6' '7' '8' '9']+
+let nat = ['0'-'9']+
 let comment = "(*" ([^'*'] | '*' [^')'])* "*)"
+let ident_tvar = '\'' ['a'-'z'] ['a'-'z' '0'-'9' '_']*
+let ident_var = ['a'-'z'] ['a'-'z' '0'-'9' '_' '\'']*
+let ident_ctor = ['A'-'Z'] ['a'-'z' 'A'-'Z' '0'-'9']*
 
 rule read = parse
   | eof { EOF }
@@ -48,13 +50,9 @@ rule read = parse
   | "match" { MATCH }
   | "with" { WITH }
   | nat { NAT (lexeme lexbuf |> int_of_string) }
-  | string
-    {
-      let x = lexeme lexbuf in
-      if Util.is_type_variable x then TVAR x
-      else if Util.is_variable x then VAR x
-      else CTOR x
-    }
+  | ident_tvar { TVAR (lexeme lexbuf) }
+  | ident_var { VAR (lexeme lexbuf) }
+  | ident_ctor { CTOR (lexeme lexbuf) }
 
 {
   let string_of_lb lexbuf =
