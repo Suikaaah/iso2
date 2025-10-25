@@ -1,1 +1,8 @@
-()
+type ('l, 'r) either = L of 'l | R of 'r
+
+iso f = function
+  | (y, y) <-> (y, False)
+  | (S x, x) <-> (x, True)
+in
+
+f

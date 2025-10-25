@@ -161,10 +161,10 @@ term:
     { App { omega = Pairs p; t } }
 
   | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
-  | LET; ISO; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
+  | ISO; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
     { LetIso { phi; omega = lambdas_of_params params omega; t } }
 
-  | LET; REC; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
+  | ISO; REC; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
     {
       let omega = Fix { phi; omega } in
       LetIso { phi; omega = lambdas_of_params params omega; t }

@@ -1,8 +1,8 @@
-let iso swap = function (x, y) <-> (y, x) in
-let iso id = function x <-> x in
-let iso dup = function x <-> (x, x) in
+iso swap = function (x, y) <-> (y, x) in
+iso id = function x <-> x in
+iso dup = function x <-> (x, x) in
 
-let rec list_map f = function
+iso rec list_map f = function
   | h' :: t' <->
       let h = f h' in
       let t = list_map t' in
@@ -11,7 +11,7 @@ let rec list_map f = function
 in
 
 (* add (x, y) = (x + y, y) *)
-let rec add = function
+iso rec add = function
   | (m, S n) <->
       let m' = S m in
       let (m'', n') = add (m', n) in
@@ -19,7 +19,7 @@ let rec add = function
   | (m, 0) <-> (m, 0)
 in
 
-let rec cantor_pairing = function
+iso rec cantor_pairing = function
   | x <->
       let y = match x with
         | (S i, j) <-> Some (i, S j)
@@ -34,17 +34,17 @@ in
 let result = list_map add [(2, 3); (5, 3); (10, 10)] in
 let a = (result, invert {list_map add} result) in
 
-let iso option_map f = function
+iso option_map f = function
   | None   <-> None
   | Some x <-> let y = f x in Some y
 in
 
-let iso shift = function
+iso shift = function
   | 0   <-> None
   | S n <-> Some n
 in
 
-let iso compose g f = function
+iso compose g f = function
   | x <->
       let x' = f x in
       let x'' = g x' in
@@ -52,7 +52,7 @@ let iso compose g f = function
 in
 
 (* relaxed restriction *)
-let rec double = function
+iso rec double = function
   | [] <-> []
   | x :: xs <->
       let xs' = double xs in
@@ -61,21 +61,21 @@ in
 
 let hi = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
 
-let rec len = function
+iso rec len = function
   | [] <-> ([], 0)
   | h :: t <->
       let (t', n) = len t in
       (h :: t', S n)
 in
 
-let rec snoc' = function
+iso rec snoc' = function
   | ([], x, 0) <-> ([x], x, 0)
   | (h :: t, x, S n) <->
       let (t', x', n') = snoc' (t, x, n) in
       (h :: t', x', S n')
 in
 
-let iso snoc = function
+iso snoc = function
   | (x, y) <->
       let (x', n) = len x in
       let (x'', y', n') = snoc' (x', y, n) in
@@ -84,7 +84,7 @@ let iso snoc = function
       (z, y')
 in
 
-let rec rev_aux = function
+iso rec rev_aux = function
   | ([], y) <-> ([], y)
   | (h :: t, y) <->
       let (h_1, h_2) = dup h in
@@ -93,9 +93,9 @@ let rec rev_aux = function
       (h_1 :: t_1, t_2)
 in
 
-let iso with_nil = function x <-> (x, []) in
+iso with_nil = function x <-> (x, []) in
 
-let iso rev = function
+iso rev = function
   | x <->
       let l = with_nil x in
       let (t_1, t_2) = rev_aux l in

@@ -32,5 +32,5 @@ let () =
   match res with
   | Ok () -> ()
   | Error (Syntax e) -> report "Syntax Error" e
-  | Error (Type e) -> report "Type Error" e
+  | Error (Type e) -> report "Error" e
   | Error (Runtime e) -> report "Runtime Error" e
