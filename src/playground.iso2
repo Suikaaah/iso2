@@ -25,23 +25,16 @@ iso rec cantor_pairing = function
         | (S i, j) <-> Some (i, S j)
         | (0, S j) <-> Some (j, 0)
         | (0, 0)   <-> None
-      in let z = match y with
+      in
+      let z = match y with
         | Some x <-> let y = cantor_pairing x in S y
         | None   <-> 0
       in z
 in
 
-let result = list_map add [(2, 3); (5, 3); (10, 10)] in
-let a = (result, invert {list_map add} result) in
-
 iso option_map f = function
   | None   <-> None
   | Some x <-> let y = f x in Some y
-in
-
-iso shift = function
-  | 0   <-> None
-  | S n <-> Some n
 in
 
 iso compose g f = function
@@ -83,18 +76,13 @@ iso rec rev_aux = function
       (h_1 :: t_1, t_2)
 in
 
-iso with_nil = function x <-> (x, []) in
-
 iso rev = function
   | x <->
-      let l = with_nil x in
+      let l = match x with x <-> (x, []) in
       let (t_1, t_2) = rev_aux l in
       (t_1, t_2)
 in
 
-let hi = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
-
-(* relaxed restriction *)
 iso rec double = function
   | [] <-> []
   | x :: xs <->
@@ -102,4 +90,15 @@ iso rec double = function
       x :: x :: xs'
 in
 
-invert double [1; 1; 4; 4; 3]
+iso if then else = function
+  | (True, x) <-> let x' = then x in (True, x')
+  | (False, x) <-> let x' = else x in (False, x')
+in
+
+iso if then else = function
+  | x <-> let x' = if then else x in x'
+in
+
+let hi = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
+
+if double {list_map S} (True, hi)

@@ -15,12 +15,11 @@ let rec invert (omega : iso) : iso =
       Pairs (List.map invert_pair p)
   | Fix { phi; omega } -> Fix { phi; omega = invert omega }
   | Lambda { psi; omega } -> Lambda { psi; omega = invert omega }
-  | Named x (* fix i guess *) when is_variable x -> omega
-  | Named x (* constructor *) -> begin
-      let vr : value = Named "x" in
+  | Var _ (* fix i guess *) -> omega
+  | Ctor x ->
+      let vr : value = Var "x" in
       let vl = Cted { c = x; v = vr } in
       Pairs [ (vl, Value vr) ]
-    end
   | App { omega_1; omega_2 } ->
       App { omega_1 = invert omega_1; omega_2 = invert omega_2 }
   | Invert omega -> omega
@@ -61,7 +60,7 @@ let rec subst_iso ~(from : string) ~(into : iso) ~(what : iso) : iso =
   | Fix { phi; omega } when phi <> from -> Fix { phi; omega = subst_iso omega }
   | Lambda { psi; omega } when psi <> from ->
       Lambda { psi; omega = subst_iso omega }
-  | Named x when x = from -> into
+  | Var x when x = from -> into
   | App { omega_1; omega_2 } ->
       App { omega_1 = subst_iso omega_1; omega_2 = subst_iso omega_2 }
   | Invert omega -> Invert (subst_iso omega)
@@ -96,12 +95,13 @@ let rec subst_iso_in_term ~(from : string) ~(into : iso) ~(what : term) : term =
 let rec value_of_term (t : term) : value myresult =
   match t with
   | Unit -> Ok Unit
-  | Named x -> Ok (Named x)
+  | Named x when is_variable x -> Ok (Var x)
+  | Named x -> Ok (Ctor x)
   | Tuple l ->
       let++ l = List.map value_of_term l |> bind_all in
       let lmao : value = Tuple l in
       lmao
-  | App { omega = Named c; t : term } ->
+  | App { omega = Ctor c; t : term } ->
       let++ v = value_of_term t in
       Cted { c; v }
   | _ -> Error ("unreachable (unreduced term: " ^ show_term t ^ ")")
@@ -124,8 +124,8 @@ let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
     let rec body ((u, v) : value * value) : bool =
       match (u, v) with
       | Unit, Unit -> true
-      | Named x, _ when is_variable x -> matches x v map_u
-      | Named x, Named y -> x = y
+      | Var x, _ -> matches x v map_u
+      | Ctor x, Ctor y -> x = y
       | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
           c_1 = c_2 && body (v_1, v_2)
       | Tuple l, Tuple r ->
@@ -139,8 +139,9 @@ let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
 
 let rec unify_value (u : value) (v : value) : (string * value) list =
   match (u, v) with
-  | Named x, _ when is_variable x -> [ (x, v) ]
-  | Cted { v = v_1; _ }, Cted { v = v_2; _ } -> unify_value v_1 v_2
+  | Var x, _ -> [ (x, v) ]
+  | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } when c_1 = c_2 ->
+      unify_value v_1 v_2
   | Tuple l, Tuple r ->
       let opt =
         let+ combined = combine l r in
@@ -172,8 +173,7 @@ let rec eval (t : term) : term myresult =
               subst ~from ~into:(term_of_value into) ~what:t)
             (term_of_expr e) unified
           |> eval
-      | Named x when is_variable x |> not ->
-          Ok (App { omega = Named x; t = term_of_value v' })
+      | Ctor x -> Ok (App { omega = Ctor x; t = term_of_value v' })
       | _ -> Ok t
     end
   | Let { p; t_1; t_2 } -> begin

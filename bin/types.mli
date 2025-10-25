@@ -14,7 +14,8 @@ type iso_type =
 
 type value =
   | Unit
-  | Named of string
+  | Var of string
+  | Ctor of string
   | Cted of { c : string; v : value }
   | Tuple of value list
 
@@ -28,7 +29,8 @@ and iso =
   | Pairs of (value * expr) list
   | Fix of { phi : string; omega : iso }
   | Lambda of { psi : string; omega : iso }
-  | Named of string
+  | Var of string
+  | Ctor of string
   | App of { omega_1 : iso; omega_2 : iso }
   | Invert of iso
 

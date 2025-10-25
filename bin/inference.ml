@@ -37,7 +37,8 @@ and base_of_any : any -> Types.base_type myresult = function
   | Var x -> Ok (Types.Var ("'" ^ string_of_int x))
   | Ctor (l, x) ->
       let++ l = List.map base_of_any l |> bind_all in
-      Types.Ctor (l, x)
+      let lmao : Types.base_type = Types.Ctor (l, x) in
+      lmao
   | _ -> Error "not a base type"
 
 and iso_of_any : any -> Types.iso_type myresult = function
@@ -219,10 +220,10 @@ let generalize_iso (e : equation list) (ctx : context) (phi : string) (a : any)
 
 let rec extract_named (gen : generator) (v : Types.value) : context =
   match v with
-  | Named x when is_variable x ->
+  | Var x ->
       let var = Var (fresh gen) in
       StrMap.singleton x (Mono var)
-  | Unit | Named _ -> StrMap.empty
+  | Unit | Ctor _ -> StrMap.empty
   | Cted { v; _ } -> extract_named gen v
   | Tuple l -> union_list (List.map (extract_named gen) l)
 
@@ -254,15 +255,15 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
   let rec collect_in_value = function
     | Types.Cted { v; _ } -> collect_in_value v
     | Types.Unit -> ()
-    | Types.Named x when is_variable x -> add x
-    | Types.Named _ -> ()
+    | Types.Var x -> add x
+    | Types.Ctor _ -> ()
     | Types.Tuple l -> List.iter collect_in_value l
   in
   let rec check_in_value = function
     | Types.Cted { v; _ } -> check_in_value v
     | Types.Unit -> Ok ()
-    | Types.Named x when is_variable x -> ensure_existence x
-    | Types.Named _ -> Ok ()
+    | Types.Var x -> ensure_existence x
+    | Types.Ctor _ -> Ok ()
     | Types.Tuple l ->
         let++ _ = List.map check_in_value l |> bind_all in
         ()
@@ -384,7 +385,7 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
       let ctx = StrMap.add psi (Mono fresh) ctx in
       let++ { a; e } = infer_iso omega gen ctx in
       { a = Arrow { a = fresh; b = a }; e }
-  | Named omega ->
+  | Ctor omega | Var omega ->
       let++ elt = find_res omega ctx in
       { a = instantiate gen elt; e = [] }
   | App { omega_1; omega_2 } ->

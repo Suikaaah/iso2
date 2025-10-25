@@ -90,14 +90,14 @@ value_nogroup:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; v = value; RPAREN; { v }
   | LPAREN; vs = wtf(COMMA, value); RPAREN; { Tuple vs }
-  | x = VAR; { Named x }
-  | x = CTOR; { Named x }
+  | x = VAR; { Var x }
+  | x = CTOR; { Ctor x }
   | n = NAT; { nat_of_int n }
-  | LBRACKET; RBRACKET; { Named "Nil" }
+  | LBRACKET; RBRACKET; { Ctor "Nil" }
   | LBRACKET; vs = separated_nonempty_list(SEMICOLON, value); RBRACKET;
     {
       let f value acc = Cted { c = "Cons"; v = Tuple [value; acc] } in
-      List.fold_right f vs (Named "Nil")
+      List.fold_right f vs (Ctor "Nil")
     }
 
 value:
@@ -115,7 +115,7 @@ expr:
   | v = value; { Value v }
   | LET; p_1 = pat; EQUAL; omega = iso; p_2 = pat; IN; e = expr; { Let { p_1; omega; p_2; e } }
   | LET; p_1 = pat; EQUAL; p_2_l = pat; CONS; p_2_r = pat; IN; e = expr;
-    { Let { p_1; omega = Named "Cons"; p_2 = Tuple [p_2_l; p_2_r]; e } }
+    { Let { p_1; omega = Ctor "Cons"; p_2 = Tuple [p_2_l; p_2_r]; e } }
 
   | LET; p_1 = pat; EQUAL; MATCH; p_2 = pat; WITH;
     PIPE?; p = separated_nonempty_list(PIPE, biarrowed); IN; e = expr;
@@ -129,8 +129,8 @@ param:
 
 iso_nogroup:
   | LBRACE; omega = iso; RBRACE; { omega }
-  | x = VAR; { Named x }
-  | x = CTOR; { let lmao : iso = Named x in lmao }
+  | x = VAR; { Var x }
+  | x = CTOR; { Ctor x }
 
 iso:
   | INVERT; omega = iso_nogroup; { Invert omega }
@@ -149,7 +149,7 @@ term_nogroup:
   | LBRACKET; RBRACKET; { Named "Nil" }
   | LBRACKET; ts = separated_nonempty_list(SEMICOLON, term); RBRACKET;
     {
-      let f t acc = App { omega = Named "Cons"; t = Tuple [t; acc] } in
+      let f t acc = App { omega = Ctor "Cons"; t = Tuple [t; acc] } in
       List.fold_right f ts (Named "Nil")
     }
 
@@ -171,5 +171,5 @@ term:
     }
 
   (* weak r-associativity *)
-  | t_1 = term; CONS; t_2 = term; { App { omega = Named "Cons"; t = Tuple [t_1; t_2] } }
+  | t_1 = term; CONS; t_2 = term; { App { omega = Ctor "Cons"; t = Tuple [t_1; t_2] } }
   | t = term_nogroup; { t }

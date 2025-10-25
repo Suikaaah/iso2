@@ -6,8 +6,9 @@ type subst = { what : string; into : value }
 
 let rec subst (s : subst) : value -> value = function
   | Unit -> Unit
-  | Named x when x = s.what && is_variable x -> s.into
-  | Named x -> Named x
+  | Var x when x = s.what -> s.into
+  | Var x -> Var x
+  | Ctor x -> Ctor x
   | Cted { c; v } -> Cted { c; v = subst s v }
   | Tuple l -> Tuple (List.map (subst s) l)
 
@@ -16,8 +17,8 @@ let subst_in_equations (s : subst) : equation list -> equation list =
 
 let rec occurs (x : string) : value -> bool = function
   | Unit -> false
-  | Named y when is_variable y -> x = y
-  | Named _ -> false
+  | Var y -> x = y
+  | Ctor _ -> false
   | Cted { v; _ } -> occurs x v
   | Tuple l -> List.exists (occurs x) l
 
@@ -28,11 +29,11 @@ let rec unify : equation list -> (subst list, unit) result = function
   | e :: e' -> begin
       match e with
       | a, b when a = b -> unify e'
-      | Named x, b when is_variable x && is_free x b ->
+      | Var x, b when is_free x b ->
           let s = { what = x; into = b } in
           let++ unified = subst_in_equations s e' |> unify in
           s :: unified
-      | a, Named x when is_variable x && is_free x a ->
+      | a, Var x when is_free x a ->
           let s = { what = x; into = a } in
           let++ unified = subst_in_equations s e' |> unify in
           s :: unified
@@ -45,15 +46,15 @@ let rec unify : equation list -> (subst list, unit) result = function
 
 let rec collect_vars : value -> string list = function
   | Unit -> []
-  | Named x when is_variable x -> [ x ]
-  | Named _ -> []
+  | Var x -> [ x ]
+  | Ctor _ -> []
   | Cted { v; _ } -> collect_vars v
   | Tuple l -> List.map collect_vars l |> List.flatten
 
 let is_orthogonal (u : value) (v : value) : unit myresult =
   let gen = ref 0 in
   let fresh_name () =
-    let name : value = Named ("x_" ^ string_of_int !gen) in
+    let name : value = Var ("x_" ^ string_of_int !gen) in
     incr gen;
     name
   in
