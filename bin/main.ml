@@ -27,7 +27,7 @@ let () =
     let++ evaluated = Eval.eval t |> to_runtime in
     evaluated |> show_term |> print_endline;
     (* ": " ^ show_base_type base_type |> print_endline *)
-    ": " ^ show_any inferred |> print_endline
+    ": " ^ show_any (tvar_map [ inferred ]) inferred |> print_endline
   in
   match res with
   | Ok () -> ()

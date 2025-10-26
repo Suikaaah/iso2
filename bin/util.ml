@@ -83,3 +83,8 @@ let find_res (what : string) (map : 'a StrMap.t) : 'a myresult =
 
 let rec repeat (what : string) (count : int) : string =
   if count < 1 then "" else what ^ repeat what (count - 1)
+
+let rec chars_of_int (n : int) : string =
+  if n < 0 then "wtf"
+  else if n < 26 then n + Char.code 'a' |> Char.chr |> String.make 1
+  else chars_of_int ((n / 26) - 1) ^ chars_of_int (n mod 26)

@@ -10,7 +10,7 @@ type base_type =
 type iso_type =
   | BiArrow of { a : base_type; b : base_type }
   | Arrow of { t_1 : iso_type; t_2 : iso_type }
-  | Var of int
+  | Var of string
 
 type value =
   | Unit
@@ -126,7 +126,7 @@ let rec show_iso_type : iso_type -> string = function
   | Arrow { t_1; t_2 = BiArrow _ as t_2 } ->
       "(" ^ show_iso_type t_1 ^ ") -> (" ^ show_iso_type t_2 ^ ")"
   | Arrow { t_1; t_2 } -> "(" ^ show_iso_type t_1 ^ ") -> " ^ show_iso_type t_2
-  | Var x -> "'" ^ string_of_int x
+  | Var x -> x
 
 let rec show_value : value -> string = function
   | Unit -> "()"

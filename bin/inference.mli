@@ -9,16 +9,17 @@ type elt
 type context
 type generator = { mutable i : int }
 
+val fresh : generator -> int
+val subst : subst -> any -> any
+val tvar_map : any list -> (int * int) list
 val invert_iso_type : any -> any myresult
 val base_of_any : any -> Types.base_type myresult
 val iso_of_any : any -> Types.iso_type myresult
-val show_any : any -> string
+val show_any : (int * int) list -> any -> string
 val show_elt : elt -> string
 val show_context : context -> string
 val show_equation : equation -> string
 val show_equations : equation list -> string
-val fresh : generator -> int
-val subst : subst -> any -> any
 val subst_in_context : subst -> context -> context
 val subst_in_equations : subst -> equation list -> equation list
 val instantiate : generator -> elt -> any

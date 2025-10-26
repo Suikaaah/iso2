@@ -18,6 +18,32 @@ type elt = Mono of any | Scheme of { forall : int list; a : any }
 type context = elt StrMap.t
 type generator = { mutable i : int }
 
+let fresh (gen : generator) : int =
+  let i = gen.i in
+  gen.i <- i + 1;
+  i
+
+let rec subst (s : subst) : any -> any = function
+  | Var x when x = s.what -> s.into
+  | Product l -> Product (List.map (subst s) l)
+  | BiArrow { a; b } -> BiArrow { a = subst s a; b = subst s b }
+  | Arrow { a; b } -> Arrow { a = subst s a; b = subst s b }
+  | Ctor (l, x) -> Ctor (List.map (subst s) l, x)
+  | Inverted a -> Inverted (subst s a)
+  | otherwise -> otherwise
+
+let tvar_map (a : any list) : (int * int) list =
+  let rec collect = function
+    | Unit | Named _ -> []
+    | Product l | Ctor (l, _) -> List.map collect l |> List.flatten
+    | BiArrow { a; b } | Arrow { a; b } -> collect a @ collect b
+    | Var i -> [ i ]
+    | Inverted a -> collect a
+  in
+  let gen = { i = 0 } in
+  List.map collect a |> List.flatten |> List.sort_uniq compare
+  |> List.map (fun i -> (i, fresh gen))
+
 let rec invert_iso_type : any -> any myresult = function
   | BiArrow { a; b } -> Ok (BiArrow { a = b; b = a })
   | Arrow { a; b } ->
@@ -26,7 +52,7 @@ let rec invert_iso_type : any -> any myresult = function
       Arrow { a; b }
   (* is this needed? *)
   | Inverted a -> Ok a
-  | otherwise -> Error (show_any otherwise ^ " is not an iso type")
+  | otherwise -> Error (show_any [] otherwise ^ " is not an iso type")
 
 and base_of_any : any -> Types.base_type myresult = function
   | Unit -> Ok Types.Unit
@@ -34,7 +60,7 @@ and base_of_any : any -> Types.base_type myresult = function
       let++ l = List.map base_of_any l |> bind_all in
       Types.Product l
   | Named x -> Ok (Types.Named x)
-  | Var x -> Ok (Types.Var ("'" ^ string_of_int x))
+  | Var x -> Ok (Types.Var ("'" ^ chars_of_int x))
   | Ctor (l, x) ->
       let++ l = List.map base_of_any l |> bind_all in
       let lmao : Types.base_type = Types.Ctor (l, x) in
@@ -50,15 +76,21 @@ and iso_of_any : any -> Types.iso_type myresult = function
       let** t_1 = iso_of_any a in
       let++ t_2 = iso_of_any b in
       Types.Arrow { t_1; t_2 }
-  | Var x -> Ok (Types.Var x)
+  | Var x -> Ok (Types.Var ("'" ^ chars_of_int x))
   | Inverted a ->
       let** inv = invert_iso_type a in
       iso_of_any inv
   | _ -> Error "not an iso type"
 
 (* todo: update *)
-and show_any : any -> string = function
-  | Inverted a -> "invert (" ^ show_any a ^ ")"
+and show_any (map : (int * int) list) (a : any) : string =
+  let a =
+    List.fold_left
+      (fun a (what, into) -> subst { what; into = Var into } a)
+      a map
+  in
+  match a with
+  | Inverted a -> "(" ^ show_any [] a ^ ")^-1"
   | a -> begin
       match base_of_any a with
       | Ok a -> Types.show_base_type a
@@ -70,31 +102,19 @@ and show_any : any -> string = function
     end
 
 let show_elt : elt -> string = function
-  | Mono a -> show_any a
+  | Mono a -> show_any [] a
   | Scheme { forall; a } ->
       "forall "
-      ^ show_list (fun x -> "'" ^ string_of_int x) forall
-      ^ ". " ^ show_any a
+      ^ show_list (fun x -> "'" ^ chars_of_int x) forall
+      ^ ". " ^ show_any [] a
 
 let show_context (ctx : context) : string =
   StrMap.to_list ctx |> show_list (fun (k, e) -> k ^ " : " ^ show_elt e)
 
-let show_equation ((a, b) : equation) : string = show_any a ^ " = " ^ show_any b
+let show_equation ((a, b) : equation) : string =
+  show_any [] a ^ " = " ^ show_any [] b
+
 let show_equations : equation list -> string = show_list show_equation
-
-let fresh (gen : generator) : int =
-  let i = gen.i in
-  gen.i <- i + 1;
-  i
-
-let rec subst (s : subst) : any -> any = function
-  | Var x when x = s.what -> s.into
-  | Product l -> Product (List.map (subst s) l)
-  | BiArrow { a; b } -> BiArrow { a = subst s a; b = subst s b }
-  | Arrow { a; b } -> Arrow { a = subst s a; b = subst s b }
-  | Ctor (l, x) -> Ctor (List.map (subst s) l, x)
-  | Inverted a -> Inverted (subst s a)
-  | otherwise -> otherwise
 
 let subst_in_context (s : subst) : context -> context =
   StrMap.map
@@ -158,7 +178,9 @@ let rec unify : equation list -> subst list myresult = function
       | Ctor (l_1, x_1), Ctor (l_2, x_2)
         when x_1 = x_2 && List.compare_lengths l_1 l_2 = 0 ->
           List.combine l_1 l_2 @ e' |> unify
-      | a, b -> Error ("unable to unify " ^ show_any a ^ " and " ^ show_any b)
+      | a, b ->
+          let map = tvar_map [ a; b ] in
+          Error ("unable to unify " ^ show_any map a ^ " and " ^ show_any map b)
     end
 
 let finalize ({ a; e } : inferred) : any myresult =

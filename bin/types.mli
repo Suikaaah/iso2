@@ -10,7 +10,7 @@ type base_type =
 type iso_type =
   | BiArrow of { a : base_type; b : base_type }
   | Arrow of { t_1 : iso_type; t_2 : iso_type }
-  | Var of int
+  | Var of string
 
 type value =
   | Unit

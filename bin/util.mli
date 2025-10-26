@@ -30,3 +30,4 @@ val show_list : ('a -> string) -> 'a list -> string
 val boldred : string -> string
 val find_res : string -> 'a StrMap.t -> 'a myresult
 val repeat : string -> int -> string
+val chars_of_int : int -> string
