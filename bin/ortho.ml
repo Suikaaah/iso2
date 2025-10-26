@@ -74,7 +74,7 @@ let is_orthogonal (u : value) (v : value) : unit myresult =
 
   let convert_value v =
     let fresh_name () =
-      let lmao : value = Var ("x" ^ string_of_int (fresh gen)) in
+      let lmao : value = Var (chars_of_int (fresh gen)) in
       lmao
     in
     let vars = collect_vars v |> StrSet.of_list in
@@ -102,7 +102,7 @@ let is_orthogonal (u : value) (v : value) : unit myresult =
 
 let convert_pair ((v, e) : value * expr) : (value * expr) myresult =
   let gen = { i = 0 } in
-  let fresh_name () = "x" ^ string_of_int (fresh gen) in
+  let fresh_name () = chars_of_int (fresh gen) in
   let substs =
     collect_vars v |> List.sort_uniq compare
     |> List.map (fun x -> (x, fresh_name ()))

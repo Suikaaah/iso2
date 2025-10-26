@@ -1,1 +1,20 @@
-iso add m n s z = m s {n s z} in add
+iso rec len = case
+  | [] <-> ([], 0)
+  | x :: xs <->
+      let (xs, n) = len xs in
+      (x :: xs, S n)
+in
+
+iso rec first = case
+  | [] <-> ([], None)
+  | x :: xs <-> (x :: xs, Some x)
+in
+
+iso rec is_even = case
+  | 0 <-> (0, True)
+  | 1 <-> (1, False)
+  | S (S x) <-> let (x, b) = is_even x in (S (S x), b)
+in
+
+is_even 69
+

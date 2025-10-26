@@ -55,5 +55,12 @@ val infer_pair :
 val infer_term : Types.term -> generator -> context -> inferred myresult
 val infer_expr : Types.expr -> generator -> context -> inferred myresult
 val infer_iso : Types.iso -> generator -> context -> inferred myresult
-val any_of_base : int StrMap.t -> Types.base_type -> any myresult
+
+val any_of_base :
+  var_map:int StrMap.t ->
+  arity_map:int StrMap.t ->
+  Types.base_type ->
+  any myresult
+
+val arity_map : Types.typedef list -> int StrMap.t
 val build_ctx : generator -> Types.typedef list -> context myresult

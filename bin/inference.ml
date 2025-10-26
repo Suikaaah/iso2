@@ -421,28 +421,47 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
       let fresh = Var (fresh gen) in
       { a = fresh; e = (fresh, Inverted a) :: e }
 
-let rec any_of_base (map : int StrMap.t) : Types.base_type -> any myresult =
-  function
+let rec any_of_base ~(var_map : int StrMap.t) ~(arity_map : int StrMap.t) :
+    Types.base_type -> any myresult = function
   | Unit -> Ok Unit
   | Product l ->
-      let++ l = List.map (any_of_base map) l |> bind_all in
+      let++ l = List.map (any_of_base ~var_map ~arity_map) l |> bind_all in
       Product l
-  | Named x -> Ok (Named x)
+  | Named x ->
+      let** arity_actual = find_res x arity_map in
+      if arity_actual = 0 then Ok (Named x)
+      else
+        Error
+          (x ^ " expects arity of " ^ string_of_int arity_actual
+         ^ " but provided with 0")
   | Var x ->
-      let++ x = find_res x map in
+      let++ x = find_res x var_map in
       Var x
   | Ctor (l, x) ->
-      let++ l = List.map (any_of_base map) l |> bind_all in
-      Ctor (l, x)
+      let** arity_actual = find_res x arity_map in
+      let arity_found = List.length l in
+      if arity_actual = arity_found then
+        let++ l = List.map (any_of_base ~var_map ~arity_map) l |> bind_all in
+        Ctor (l, x)
+      else
+        Error
+          (x ^ " expects arity of " ^ string_of_int arity_actual
+         ^ " but provided with " ^ string_of_int arity_found)
+
+let arity_map (defs : Types.typedef list) : int StrMap.t =
+  List.fold_left
+    (fun acc Types.{ vars; t; _ } -> StrMap.add t (List.length vars) acc)
+    StrMap.empty defs
 
 let build_ctx (gen : generator) (defs : Types.typedef list) : context myresult =
+  let arity_map = arity_map defs in
   let build Types.{ vars; t; vs } =
-    let map =
+    let var_map =
       List.fold_left
         (fun acc x -> StrMap.add x (fresh gen) acc)
         StrMap.empty vars
     in
-    let** forall = List.map (fun x -> find_res x map) vars |> bind_all in
+    let** forall = List.map (fun x -> find_res x var_map) vars |> bind_all in
     let inner =
       match forall with
       | [] -> Named t
@@ -451,7 +470,7 @@ let build_ctx (gen : generator) (defs : Types.typedef list) : context myresult =
     let f = function
       | Types.Value x -> Ok (x, Scheme { forall; a = inner })
       | Types.Iso { c; a } ->
-          let++ a = any_of_base map a in
+          let++ a = any_of_base ~var_map ~arity_map a in
           let inner = BiArrow { a; b = inner } in
           (c, Scheme { forall; a = inner })
     in
