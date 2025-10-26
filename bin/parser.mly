@@ -166,8 +166,8 @@ term:
 
   | ISO; REC; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
     {
-      let omega = Fix { phi; omega } in
-      LetIso { phi; omega = lambdas_of_params params omega; t }
+      let omega = lambdas_of_params params omega in
+      LetIso { phi; omega = Fix { phi; omega }; t }
     }
 
   (* weak r-associativity *)

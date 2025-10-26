@@ -5,4 +5,4 @@ iso f = case
       (a, b)
 in
 
-f (3, 5)
+f (3, 4)

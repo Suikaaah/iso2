@@ -5,7 +5,7 @@ iso dup = case x <-> (x, x) in
 iso rec list_map f = case
   | h :: t <->
       let h = f h in
-      let t = list_map t in
+      let t = list_map f t in
       h :: t
   | [] <-> []
 in
