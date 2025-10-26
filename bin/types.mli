@@ -69,3 +69,5 @@ val show_pairs_lhs : (value * expr) list -> string
 val show_term : term -> string
 val nat_of_int : int -> value
 val build_storage : 'a -> value -> 'a option StrMap.t
+val collect_vars : value -> string list
+val collect_vars_pat : pat -> string list

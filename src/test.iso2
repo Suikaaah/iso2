@@ -1,1 +1,8 @@
-()
+iso f = case
+  | (a, b) <->
+      let a = S a in
+      let b = S b in
+      (a, b)
+in
+
+f (3, 5)

@@ -45,8 +45,8 @@ rule read = parse
   | "invert" { INVERT }
   | "rec" { REC }
   | "of" { OF }
-  | "function" { FUNCTION }
   | "fun" { FUN }
+  | "case" { CASE }
   | "match" { MATCH }
   | "with" { WITH }
   | nat { NAT (lexeme lexbuf |> int_of_string) }

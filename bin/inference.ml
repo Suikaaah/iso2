@@ -240,17 +240,27 @@ let invert_pairs (pairs : (Types.value * Types.expr) list) :
   List.map invert_pair pairs
 
 let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
-  let set = ref StrSet.empty in
-  let add x = set := StrSet.add x !set in
-  let add_unique x =
-    match StrSet.find_opt x !set with
-    | Some _ -> Error (x ^ " is used more than once")
-    | None -> Ok (add x)
+  let** v', e' = Ortho.convert_pair (v, e) in
+  let msg =
+    lazy
+      (" in branch " ^ Types.show_value v' ^ " <-> " ^ Types.show_expr e'
+     ^ "\nsource: " ^ Types.show_value v ^ " <-> " ^ Types.show_expr e)
   in
-  let ensure_existence x =
-    match StrSet.find_opt x !set with
-    | Some _ -> Ok ()
-    | None -> Error (x ^ " is not in context")
+
+  (* string -> bool (consumed or not) *)
+  let set = ref StrMap.empty in
+  let add x = set := StrMap.add x false !set in
+  let consume x =
+    match StrMap.find_opt x !set with
+    | Some false -> Ok (set := StrMap.add x true !set)
+    | Some true -> Error (x ^ " is already consumed" ^ Lazy.force msg)
+    | None -> Error (x ^ " is not in context" ^ Lazy.force msg)
+  in
+  let ensure_existence_nonconsumed x =
+    match StrMap.find_opt x !set with
+    | Some false -> Ok ()
+    | Some true -> Error (x ^ " is already consumed" ^ Lazy.force msg)
+    | None -> Error (x ^ " is not in context" ^ Lazy.force msg)
   in
   let rec collect_in_value = function
     | Types.Cted { v; _ } -> collect_in_value v
@@ -262,20 +272,18 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
   let rec check_in_value = function
     | Types.Cted { v; _ } -> check_in_value v
     | Types.Unit -> Ok ()
-    | Types.Var x -> ensure_existence x
+    | Types.Var x -> ensure_existence_nonconsumed x
     | Types.Ctor _ -> Ok ()
     | Types.Tuple l ->
         let++ _ = List.map check_in_value l |> bind_all in
         ()
   in
   let rec collect_in_pat : Types.pat -> _ = function
-    | Types.Named x -> add_unique x
-    | Types.Tuple l ->
-        let++ _ = List.map collect_in_pat l |> bind_all in
-        ()
+    | Types.Named x -> add x
+    | Types.Tuple l -> List.iter collect_in_pat l
   in
   let rec check_in_pat : Types.pat -> _ = function
-    | Types.Named x -> ensure_existence x
+    | Types.Named x -> consume x
     | Types.Tuple l ->
         let++ _ = List.map check_in_pat l |> bind_all in
         ()
@@ -283,12 +291,12 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
   let rec check_in_expr : Types.expr -> _ = function
     | Types.Let { p_1; p_2; e; _ } ->
         let** _ = check_in_pat p_2 in
-        let** _ = collect_in_pat p_1 in
+        collect_in_pat p_1;
         check_in_expr e
     | Types.Value v -> check_in_value v
   in
-  collect_in_value v;
-  check_in_expr e
+  collect_in_value v';
+  check_in_expr e'
 
 let rec infer_pair (gen : generator) (ctx : context)
     ((v, e) : Types.value * Types.expr) : inferred_pair myresult =
@@ -342,15 +350,7 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
   match omega with
   | Pairs p ->
       let check_orth p =
-        let** _ =
-          let rmap v e x =
-            x ^ " in branch " ^ Types.show_value v ^ " <-> " ^ Types.show_expr e
-          in
-          List.map
-            (fun (v, e) -> check_pair (v, e) |> Result.map_error (rmap v e))
-            p
-          |> bind_all
-        in
+        let** _ = List.map (fun (v, e) -> check_pair (v, e)) p |> bind_all in
         let left = List.map (fun (v, _) -> v) p in
         let right = List.map (fun (_, e) -> Types.value_of_expr e) p in
         let** () = for_all_pairs Ortho.is_orthogonal left in

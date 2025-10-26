@@ -27,8 +27,8 @@
 %token INVERT
 %token REC
 %token OF
-%token FUNCTION
 %token FUN
+%token CASE
 %token MATCH
 %token WITH
 %token <int> NAT
@@ -134,7 +134,7 @@ iso_nogroup:
 
 iso:
   | INVERT; omega = iso_nogroup; { Invert omega }
-  | FUNCTION; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
+  | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
   | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
   | FUN; params = param+; ARROW; omega = iso; { lambdas_of_params params omega }
   | omega_1 = iso; omega_2 = iso_nogroup; { App { omega_1; omega_2 } }

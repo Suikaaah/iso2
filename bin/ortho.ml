@@ -3,6 +3,12 @@ open Util
 
 type equation = value * value
 type subst = { what : string; into : value }
+type generator = { mutable i : int }
+
+let fresh (gen : generator) : int =
+  let i = gen.i in
+  gen.i <- i + 1;
+  i
 
 let rec subst (s : subst) : value -> value = function
   | Unit -> Unit
@@ -14,6 +20,25 @@ let rec subst (s : subst) : value -> value = function
 
 let subst_in_equations (s : subst) : equation list -> equation list =
   List.map (fun (a, b) -> (subst s a, subst s b))
+
+let rec subst_in_pat ~(what : string) ~(into : string) : pat -> pat = function
+  | Named x when x = what -> Named into
+  | Named x -> Named x
+  | Tuple l -> Tuple (List.map (subst_in_pat ~what ~into) l)
+
+let rec subst_in_expr ~(what : string) ~(into : string) : expr -> expr =
+  function
+  | Value v -> Value (subst { what; into = Var into } v)
+  | Let { p_1; omega; p_2; e } when contains what p_1 ->
+      Let { p_1; omega; p_2 = subst_in_pat ~what ~into p_2; e }
+  | Let { p_1; omega; p_2; e } ->
+      Let
+        {
+          p_1;
+          omega;
+          p_2 = subst_in_pat ~what ~into p_2;
+          e = subst_in_expr ~what ~into e;
+        }
 
 let rec occurs (x : string) : value -> bool = function
   | Unit -> false
@@ -44,22 +69,14 @@ let rec unify : equation list -> (subst list, unit) result = function
       | _ -> Error ()
     end
 
-let rec collect_vars : value -> string list = function
-  | Unit -> []
-  | Var x -> [ x ]
-  | Ctor _ -> []
-  | Cted { v; _ } -> collect_vars v
-  | Tuple l -> List.map collect_vars l |> List.flatten
-
 let is_orthogonal (u : value) (v : value) : unit myresult =
-  let gen = ref 0 in
-  let fresh_name () =
-    let name : value = Var ("x_" ^ string_of_int !gen) in
-    incr gen;
-    name
-  in
+  let gen = { i = 0 } in
 
-  let convert v =
+  let convert_value v =
+    let fresh_name () =
+      let lmao : value = Var ("x" ^ string_of_int (fresh gen)) in
+      lmao
+    in
     let vars = collect_vars v |> StrSet.of_list in
     let substs =
       StrSet.fold
@@ -69,17 +86,58 @@ let is_orthogonal (u : value) (v : value) : unit myresult =
     List.fold_left (fun v s -> subst s v) v substs
   in
 
-  let u' = convert u in
-  let v' = convert v in
+  let u' = convert_value u in
+  let v' = convert_value v in
 
   match unify [ (u', v') ] with
   | Ok l ->
       let msg =
-        show_value u ^ " and " ^ show_value v ^ " are not orthogonal\n"
-        ^ "example: "
+        show_value u' ^ " and " ^ show_value v' ^ " are not orthogonal"
+        ^ "\nexample: "
         ^ show_list (fun { what; into } -> what ^ " = " ^ show_value into) l
-        ^ "\nwhere " ^ show_value u ^ " = " ^ show_value u' ^ " and "
-        ^ show_value v ^ " = " ^ show_value v'
+        ^ "\nsource: " ^ show_value u ^ " and " ^ show_value v
       in
       Error msg
   | Error () -> Ok ()
+
+let convert_pair ((v, e) : value * expr) : (value * expr) myresult =
+  let gen = { i = 0 } in
+  let fresh_name () = "x" ^ string_of_int (fresh gen) in
+  let substs =
+    collect_vars v |> List.sort_uniq compare
+    |> List.map (fun x -> (x, fresh_name ()))
+  in
+  let v =
+    List.fold_left
+      (fun v (what, into) -> subst { what; into = Var into } v)
+      v substs
+  in
+  let e =
+    List.fold_left (fun e (what, into) -> subst_in_expr ~what ~into e) e substs
+  in
+
+  let rec process_expr : expr -> expr myresult = function
+    | Value e -> Ok (Value e)
+    | Let { p_1; omega; p_2; e } ->
+        let vars = collect_vars_pat p_1 in
+        let vars_nodup = vars |> List.sort_uniq compare in
+        if List.compare_lengths vars vars_nodup = 0 (* no duplicates *) then
+          let substs = List.map (fun x -> (x, fresh_name ())) vars in
+          let p_1 =
+            List.fold_left
+              (fun p (what, into) -> subst_in_pat ~what ~into p)
+              p_1 substs
+          in
+          let e =
+            List.fold_left
+              (fun e (what, into) -> subst_in_expr ~what ~into e)
+              e substs
+          in
+          let++ e = process_expr e in
+          let lmao : expr = Let { p_1; omega; p_2; e } in
+          lmao
+        else Error ("duplicated variable(s) found in " ^ show_pat p_1)
+  in
+
+  let++ e = process_expr e in
+  (v, e)

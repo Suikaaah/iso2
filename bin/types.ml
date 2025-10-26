@@ -168,17 +168,14 @@ let rec show_pat : pat -> string = function
 
 let rec show_expr : expr -> string = function
   | Value v -> show_value v
-  | Let { p_1; omega = (Ctor _ | Var _) as omega; p_2; e } ->
-      "let " ^ show_pat p_1 ^ " = " ^ show_iso omega ^ " " ^ show_pat p_2
-      ^ " in " ^ show_expr e
   | Let { p_1; omega; p_2; e } ->
-      "let " ^ show_pat p_1 ^ " = {" ^ show_iso omega ^ "} " ^ show_pat p_2
+      "let " ^ show_pat p_1 ^ " = " ^ show_iso omega ^ " " ^ show_pat p_2
       ^ " in " ^ show_expr e
 
 and show_pairs (pairs : (value * expr) list) : string =
   List.fold_left
     (fun acc (v, e) -> acc ^ "\n  | " ^ show_value v ^ " <-> " ^ show_expr e)
-    "function" pairs
+    "case" pairs
 
 and show_iso : iso -> string = function
   | Pairs p -> show_pairs p
@@ -194,7 +191,7 @@ and show_iso : iso -> string = function
 let show_pairs_lhs (pairs : (value * expr) list) : string =
   List.fold_left
     (fun acc (v, _) -> acc ^ "\n  | " ^ show_value v ^ " <-> ...")
-    "function" pairs
+    "case" pairs
 
 let rec show_term : term -> string = function
   | Unit -> "()"
@@ -249,3 +246,14 @@ let rec build_storage (default : 'a) : value -> 'a option StrMap.t = function
       |> List.fold_left
            (StrMap.union (fun _ _ _ -> Some (Some default)))
            StrMap.empty
+
+let rec collect_vars : value -> string list = function
+  | Unit -> []
+  | Var x -> [ x ]
+  | Ctor _ -> []
+  | Cted { v; _ } -> collect_vars v
+  | Tuple l -> List.map collect_vars l |> List.flatten
+
+let rec collect_vars_pat : pat -> string list = function
+  | Named x -> [ x ]
+  | Tuple l -> List.map collect_vars_pat l |> List.flatten
