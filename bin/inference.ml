@@ -346,10 +346,14 @@ and infer_term (t : Types.term) (gen : generator) (ctx : context) :
       let fresh = Var (fresh gen) in
       { a = fresh; e = (a_1, BiArrow { a = a_2; b = fresh }) :: e }
   | Let { p; t_1; t_2 } ->
-      let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
-      let** ctx, e = generalize e_1 ctx p a_1 gen in
-      let++ { a = a_2; e = e_2 } = infer_term t_2 gen ctx in
-      { a = a_2; e = (e :: e_1) @ e_2 }
+      let collected = Types.collect_vars_pat p in
+      let dup_removed = List.sort_uniq compare collected in
+      if List.compare_lengths collected dup_removed = 0 then
+        let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
+        let** ctx, e = generalize e_1 ctx p a_1 gen in
+        let++ { a = a_2; e = e_2 } = infer_term t_2 gen ctx in
+        { a = a_2; e = (e :: e_1) @ e_2 }
+      else Error ("duplicated variable(s) found in " ^ Types.show_pat p)
   | LetIso { phi; omega; t } ->
       let** { a = a_1; e = e_1 } = infer_iso omega gen ctx in
       let** ctx = generalize_iso e_1 ctx phi a_1 in

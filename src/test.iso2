@@ -1,20 +1,15 @@
-iso rec len = case
-  | [] <-> ([], 0)
-  | x :: xs <->
-      let (xs, n) = len xs in
-      (x :: xs, S n)
+iso rec cantor_pairing = case
+  | x <->
+      let y = match x with
+        | (S i, j) <-> Some (i, S j)
+        | (0, S j) <-> Some (j, 0)
+        | (0, 0)   <-> None
+      in
+      let z = match y with
+        | Some x <-> let y = cantor_pairing x in S y
+        | None   <-> 0
+      in z
 in
 
-iso rec first = case
-  | [] <-> ([], None)
-  | x :: xs <-> (x :: xs, Some x)
-in
-
-iso rec is_even = case
-  | 0 <-> (0, True)
-  | 1 <-> (1, False)
-  | S (S x) <-> let (x, b) = is_even x in (S (S x), b)
-in
-
-is_even 69
+invert cantor_pairing 18
 

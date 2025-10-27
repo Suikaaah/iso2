@@ -101,5 +101,13 @@ in
 
 let hi = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
 
-if double {list_map S} (True, hi)
+iso rec is_even = case
+  | 0 <-> (0, True)
+  | 1 <-> (1, False)
+  | S (S x) <-> let (x, b) = is_even x in (S (S x), b)
+in
+
+let asdf = if double {list_map S} (True, hi) in
+
+rev [1; 2; 3; 4]
 
