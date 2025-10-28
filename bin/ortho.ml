@@ -69,6 +69,15 @@ let rec unify : equation list -> (subst list, unit) result = function
       | _ -> Error ()
     end
 
+let rec reduce : subst list -> subst list = function
+  | [] -> []
+  | s :: s' ->
+      let s' =
+        List.map (fun { what; into } -> { what; into = subst s into }) s'
+        |> reduce
+      in
+      s :: s'
+
 let is_orthogonal (u : value) (v : value) : unit myresult =
   let gen = { i = 0 } in
 
@@ -94,7 +103,10 @@ let is_orthogonal (u : value) (v : value) : unit myresult =
       let msg =
         show_value u' ^ " and " ^ show_value v' ^ " are not orthogonal"
         ^ "\nexample: "
-        ^ show_list (fun { what; into } -> what ^ " = " ^ show_value into) l
+        ^ show_list
+            (fun { what; into } -> what ^ " = " ^ show_value into)
+            (List.rev l |> reduce
+            |> List.sort (fun l r -> compare l.what r.what))
         ^ "\nsource: " ^ show_value u ^ " and " ^ show_value v
       in
       Error msg
@@ -102,7 +114,9 @@ let is_orthogonal (u : value) (v : value) : unit myresult =
 
 let convert_pair ((v, e) : value * expr) : (value * expr) myresult =
   let gen = { i = 0 } in
-  let fresh_name () = chars_of_int (fresh gen) in
+
+  (* ' is needed for creating fresh names due to the let exprs *)
+  let fresh_name () = "'" ^ chars_of_int (fresh gen) in
   let substs =
     collect_vars v |> List.sort_uniq compare
     |> List.map (fun x -> (x, fresh_name ()))

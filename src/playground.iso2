@@ -1,6 +1,6 @@
 iso swap = case (x, y) <-> (y, x) in
 iso id = case x <-> x in
-iso dup = case x <-> (x, x) in
+iso clone = case x <-> (x, x) in
 
 iso rec list_map f = case
   | h :: t <->
@@ -70,7 +70,7 @@ in
 iso rec rev_aux = case
   | ([], y) <-> ([], y)
   | (h :: t, y) <->
-      let (h1, h2) = dup h in
+      let (h1, h2) = clone h in
       let c = h2 :: y in
       let (t1, t2) = rev_aux (t, c) in
       (h1 :: t1, t2)
@@ -109,5 +109,13 @@ in
 
 let asdf = if double {list_map S} (True, hi) in
 
-rev [1; 2; 3; 4]
+iso rec fold_left f = case
+  | (acc, []) <-> (acc, [])
+  | (acc, x :: xs) <->
+      let (x, x') = clone x in
+      let acc = f (acc, x) in
+      let (acc, xs) = fold_left f (acc, xs) in
+      (acc, x' :: xs)
+in
 
+()
