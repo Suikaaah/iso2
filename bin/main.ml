@@ -19,7 +19,6 @@ let to_runtime r = Result.map_error (fun e -> Runtime e) r
 let () =
   let res =
     let** { t; ts } = read_program Sys.argv.(1) |> to_syntax in
-    (* show_term t |> print_endline; *)
     let gen = { i = 0 } in
     let** ctx = build_ctx gen ts |> to_type in
     let** inferred = Result.bind (infer_term t gen ctx) finalize |> to_type in

@@ -11,25 +11,20 @@ in
 iso rec rev = case
   | ([], l, 0) <-> ([], l, 0)
   | (x :: xs, l, S n) <->
-      let l = x :: l in
-      let (xs, l, n) = rev (xs, l, n) in
+      let (xs, l, n) = rev (xs, x :: l, n) in
       (xs, l, S n)
 in
 
 iso rev = case
   | l <->
       let (l, n) = len l in
-      let (l, e) = with_nil l in
-      let (e, l, n) = rev (l, e, n) in
-      let l = invert with_nil (l, e) in
+      let ([], l, n) = rev (l, [], n) in
       let l = invert len (l, n) in
       l
 in
 
-iso f = case
-  | (x, x, y) <-> Ok (x, y)
-  | ((3, S x), (S x, y), (y, x)) <-> Error (x, y)
-in
+let r = rev [1; 3; 4; 9] in
 
-rev [1; 3; 4; 9]
+iso f = case x <-> let y = Some 3 :: [x] in y in
 
+invert f [4; 5]

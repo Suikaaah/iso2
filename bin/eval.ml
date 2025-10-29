@@ -24,26 +24,14 @@ let rec invert (omega : iso) : iso =
       App { omega_1 = invert omega_1; omega_2 = invert omega_2 }
   | Invert omega -> omega
 
-let rec unify (p : pat) (t : term) : (string * term) list myresult =
-  match (p, t) with
-  | Named x, _ -> Ok [ (x, t) ]
-  | Tuple p', Tuple t' ->
-      let** combined =
-        combine p' t'
-        |> Option.to_result
-             ~none:("arity mismatch: " ^ show_pat p ^ " and " ^ show_term t)
-      in
-      let++ nested = List.map (fun (p, t) -> unify p t) combined |> bind_all in
-      List.flatten nested
-  | _ -> Ok []
-
 let rec subst ~(from : string) ~(into : term) ~(what : term) : term =
   let subst what = subst ~from ~into ~what in
   match what with
   | Named x when x = from -> into
   | Tuple l -> Tuple (List.map subst l)
   | App { omega; t } -> App { omega; t = subst t }
-  | Let { p; t_1; t_2 } when contains from p -> Let { p; t_1 = subst t_1; t_2 }
+  | Let { p; t_1; t_2 } when contains_value from p ->
+      Let { p; t_1 = subst t_1; t_2 }
   | Let { p; t_1; t_2 } -> Let { p; t_1 = subst t_1; t_2 = subst t_2 }
   | LetIso { phi; omega; t } when phi <> from ->
       LetIso { phi; omega; t = subst t }
@@ -72,7 +60,8 @@ and subst_iso_in_expr ~(from : string) ~(into : iso) ~(what : expr) : expr =
   | Let { p_1; omega; p_2; e } ->
       let omega = subst_iso ~from ~into ~what:omega in
       let e =
-        if contains from p_1 then e else subst_iso_in_expr ~from ~into ~what:e
+        if contains_value from p_1 then e
+        else subst_iso_in_expr ~from ~into ~what:e
       in
       Let { p_1; omega; p_2; e }
 
@@ -82,7 +71,7 @@ let rec subst_iso_in_term ~(from : string) ~(into : iso) ~(what : term) : term =
   match what with
   | Tuple l -> Tuple (List.map subst_iso_in_term l)
   | App { omega; t } -> App { omega = subst_iso omega; t = subst_iso_in_term t }
-  | Let { p; t_1; t_2 } when contains from p ->
+  | Let { p; t_1; t_2 } when contains_value from p ->
       Let { p; t_1 = subst_iso_in_term t_1; t_2 }
   | Let { p; t_1; t_2 } ->
       Let { p; t_1 = subst_iso_in_term t_1; t_2 = subst_iso_in_term t_2 }
@@ -137,18 +126,20 @@ let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
   in
   List.find_opt (fun (v', _) -> vv (v', v)) l
 
-let rec unify_value (u : value) (v : value) : (string * value) list =
+let rec unify_value (u : value) (v : value) : (string * value) list myresult =
   match (u, v) with
-  | Var x, _ -> [ (x, v) ]
+  | Unit, Unit -> Ok []
+  | Var x, _ -> Ok [ (x, v) ]
+  | Ctor x, Ctor y when x = y -> Ok []
   | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } when c_1 = c_2 ->
       unify_value v_1 v_2
-  | Tuple l, Tuple r ->
-      let opt =
-        let+ combined = combine l r in
-        List.map (fun (u, v) -> unify_value u v) combined |> List.flatten
+  | Tuple l, Tuple r when List.compare_lengths l r = 0 ->
+      let combined = List.combine l r in
+      let++ unified =
+        List.map (fun (u, v) -> unify_value u v) combined |> bind_all
       in
-      Option.value ~default:[] opt
-  | _ -> []
+      List.flatten unified
+  | _ -> Error ("unable to unify " ^ show_value u ^ " and " ^ show_value v)
 
 let rec eval (t : term) : term myresult =
   match t with
@@ -167,7 +158,7 @@ let rec eval (t : term) : term myresult =
             in
             match_pair p v' |> Option.to_result ~none:(Lazy.force msg)
           in
-          let unified = unify_value v v' in
+          let** unified = unify_value v v' in
           List.fold_left
             (fun t (from, into) ->
               subst ~from ~into:(term_of_value into) ~what:t)
@@ -177,10 +168,10 @@ let rec eval (t : term) : term myresult =
       | _ -> Ok t
     end
   | Let { p; t_1; t_2 } -> begin
-      let** t_1 = eval t_1 in
-      let** unified = unify p t_1 in
+      let** t_1 = Result.bind (eval t_1) value_of_term in
+      let** unified = unify_value p t_1 in
       List.fold_left
-        (fun t (from, into) -> subst ~from ~into ~what:t)
+        (fun t (from, into) -> subst ~from ~into:(term_of_value into) ~what:t)
         t_2 unified
       |> eval
     end

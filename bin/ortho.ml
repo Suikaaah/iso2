@@ -21,22 +21,17 @@ let rec subst (s : subst) : value -> value = function
 let subst_in_equations (s : subst) : equation list -> equation list =
   List.map (fun (a, b) -> (subst s a, subst s b))
 
-let rec subst_in_pat ~(what : string) ~(into : string) : pat -> pat = function
-  | Named x when x = what -> Named into
-  | Named x -> Named x
-  | Tuple l -> Tuple (List.map (subst_in_pat ~what ~into) l)
-
 let rec subst_in_expr ~(what : string) ~(into : string) : expr -> expr =
   function
   | Value v -> Value (subst { what; into = Var into } v)
-  | Let { p_1; omega; p_2; e } when contains what p_1 ->
-      Let { p_1; omega; p_2 = subst_in_pat ~what ~into p_2; e }
+  | Let { p_1; omega; p_2; e } when contains_value what p_1 ->
+      Let { p_1; omega; p_2 = subst { what; into = Var into } p_2; e }
   | Let { p_1; omega; p_2; e } ->
       Let
         {
           p_1;
           omega;
-          p_2 = subst_in_pat ~what ~into p_2;
+          p_2 = subst { what; into = Var into } p_2;
           e = subst_in_expr ~what ~into e;
         }
 
@@ -133,13 +128,13 @@ let convert_pair ((v, e) : value * expr) : (value * expr) myresult =
   let rec process_expr : expr -> expr myresult = function
     | Value e -> Ok (Value e)
     | Let { p_1; omega; p_2; e } ->
-        let vars = collect_vars_pat p_1 in
+        let vars = collect_vars p_1 in
         let vars_nodup = vars |> List.sort_uniq compare in
         if List.compare_lengths vars vars_nodup = 0 (* no duplicates *) then
           let substs = List.map (fun x -> (x, fresh_name ())) vars in
           let p_1 =
             List.fold_left
-              (fun p (what, into) -> subst_in_pat ~what ~into p)
+              (fun p (what, into) -> subst { what; into = Var into } p)
               p_1 substs
           in
           let e =
@@ -150,7 +145,7 @@ let convert_pair ((v, e) : value * expr) : (value * expr) myresult =
           let++ e = process_expr e in
           let lmao : expr = Let { p_1; omega; p_2; e } in
           lmao
-        else Error ("duplicated variable(s) found in " ^ show_pat p_1)
+        else Error ("duplicated variable(s) found in " ^ show_value p_1)
   in
 
   let++ e = process_expr e in

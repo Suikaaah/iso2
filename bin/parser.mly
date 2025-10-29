@@ -41,7 +41,6 @@
 %type <base_type> base_type
 %type <value> value_nogroup
 %type <value> value
-%type <pat> pat
 %type <expr> expr
 %type <iso> iso_nogroup
 %type <iso> iso
@@ -107,17 +106,10 @@ value:
   | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
   | v = value_nogroup; { v }
 
-pat:
-  | x = VAR; { Named x }
-  | LPAREN; ps = wtf(COMMA, pat); RPAREN; { Tuple ps }
-
 expr:
   | v = value; { Value v }
-  | LET; p_1 = pat; EQUAL; omega = iso; p_2 = pat; IN; e = expr; { Let { p_1; omega; p_2; e } }
-  | LET; p_1 = pat; EQUAL; p_2_l = pat; CONS; p_2_r = pat; IN; e = expr;
-    { Let { p_1; omega = Ctor "Cons"; p_2 = Tuple [p_2_l; p_2_r]; e } }
-
-  | LET; p_1 = pat; EQUAL; MATCH; p_2 = pat; WITH;
+  | LET; p_1 = value; EQUAL; omega = iso; p_2 = value_nogroup; IN; e = expr; { Let { p_1; omega; p_2; e } }
+  | LET; p_1 = value; EQUAL; MATCH; p_2 = value; WITH;
     PIPE?; p = separated_nonempty_list(PIPE, biarrowed); IN; e = expr;
     { Let { p_1; omega = Pairs p; p_2; e } }
 
@@ -160,7 +152,7 @@ term:
   | MATCH; t = term; WITH; PIPE?; p = separated_nonempty_list(PIPE, biarrowed);
     { App { omega = Pairs p; t } }
 
-  | LET; p = pat; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
+  | LET; p = value; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
   | ISO; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
     { LetIso { phi; omega = lambdas_of_params params omega; t } }
 

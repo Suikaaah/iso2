@@ -26,28 +26,24 @@ val instantiate : generator -> elt -> any
 val occurs : int -> any -> bool
 val unify : equation list -> subst list myresult
 val finalize : inferred -> any myresult
-
-(* (a, (b, c)) -> ('0, ('1, '2)) and [(a, '0); (b, '1); (c, '2)] *)
-val context_of_pat : generator -> Types.pat -> any * any StrMap.t
 val find_generalizable : any -> context -> int list
-
-val generalize :
-  equation list ->
-  context ->
-  Types.pat ->
-  any ->
-  generator ->
-  (context * equation) myresult
-
-val generalize_iso :
-  equation list -> context -> string -> any -> context myresult
-
-val extract_named : generator -> Types.value -> context
+val extract_named : generator -> Types.value -> any StrMap.t
 
 val invert_pairs :
   (Types.value * Types.expr) list -> (Types.value * Types.expr) list
 
 val check_pair : Types.value * Types.expr -> unit myresult
+
+val generalize_iso :
+  equation list -> context -> string -> any -> context myresult
+
+val generalize :
+  equation list ->
+  context ->
+  Types.value ->
+  any ->
+  generator ->
+  (context * equation list) myresult
 
 val infer_pair :
   generator -> context -> Types.value * Types.expr -> inferred_pair myresult

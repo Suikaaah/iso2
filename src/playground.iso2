@@ -13,8 +13,7 @@ in
 (* add (x, y) = (x + y, y) *)
 iso rec add = case
   | (m, S n) <->
-      let m = S m in
-      let (m, n) = add (m, n) in
+      let (m, n) = add (S m, n) in
       (m, S n)
   | (m, 0) <-> (m, 0)
 in
@@ -62,8 +61,7 @@ iso snoc = case
   | (x, y) <->
       let (x, n) = len x in
       let (x, y, n) = snoc' (x, y, n) in
-      let n = S n in
-      let z = invert len (x, n) in
+      let z = invert len (x, S n) in
       (z, y)
 in
 
@@ -71,17 +69,11 @@ iso rec rev_aux = case
   | ([], y) <-> ([], y)
   | (h :: t, y) <->
       let (h1, h2) = clone h in
-      let c = h2 :: y in
-      let (t1, t2) = rev_aux (t, c) in
+      let (t1, t2) = rev_aux (t, h2 :: y) in
       (h1 :: t1, t2)
 in
 
-iso rev = case
-  | x <->
-      let l = match x with x <-> (x, []) in
-      let (t1, t2) = rev_aux l in
-      (t1, t2)
-in
+iso rev = case l <-> let p = rev_aux (l, []) in p in
 
 iso rec double = case
   | [] <-> []

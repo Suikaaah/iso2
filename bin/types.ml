@@ -19,11 +19,9 @@ type value =
   | Cted of { c : string; v : value }
   | Tuple of value list
 
-type pat = Named of string | Tuple of pat list
-
 type expr =
   | Value of value
-  | Let of { p_1 : pat; omega : iso; p_2 : pat; e : expr }
+  | Let of { p_1 : value; omega : iso; p_2 : value; e : expr }
 
 and iso =
   | Pairs of (value * expr) list
@@ -39,7 +37,7 @@ type term =
   | Named of string
   | Tuple of term list
   | App of { omega : iso; t : term }
-  | Let of { p : pat; t_1 : term; t_2 : term }
+  | Let of { p : value; t_1 : term; t_2 : term }
   | LetIso of { phi : string; omega : iso; t : term }
 
 type variant = Value of string | Iso of { c : string; a : base_type }
@@ -52,27 +50,19 @@ let rec term_of_value : value -> term = function
   | Cted { c; v } -> App { omega = Ctor c; t = term_of_value v }
   | Tuple l -> Tuple (List.map term_of_value l)
 
-let rec term_of_pat : pat -> term = function
-  | Named x -> Named x
-  | Tuple l -> Tuple (List.map term_of_pat l)
-
 let rec term_of_expr : expr -> term = function
   | Value v -> term_of_value v
   | Let { p_1; omega; p_2; e } ->
       Let
         {
           p = p_1;
-          t_1 = App { omega; t = term_of_pat p_2 };
+          t_1 = App { omega; t = term_of_value p_2 };
           t_2 = term_of_expr e;
         }
 
 let rec value_of_expr : expr -> value = function
   | Value v -> v
   | Let { e; _ } -> value_of_expr e
-
-let rec contains (what : string) : pat -> bool = function
-  | Named x -> x = what
-  | Tuple l -> List.exists (contains what) l
 
 let rec contains_value (what : string) : value -> bool = function
   | Unit -> false
@@ -162,14 +152,14 @@ let rec show_value : value -> string = function
       c ^ " (" ^ show_value v ^ ")"
   | Cted { c; v } -> c ^ " " ^ show_value v
 
-let rec show_pat : pat -> string = function
-  | Named x -> x
-  | Tuple l -> show_tuple show_pat l
-
 let rec show_expr : expr -> string = function
   | Value v -> show_value v
+  | Let { p_1; omega; p_2 = Cted _ as p_2; e }
+    when (is_int_value p_2 || is_list_value p_2) |> not ->
+      "let " ^ show_value p_1 ^ " = " ^ show_iso omega ^ " (" ^ show_value p_2
+      ^ ") in\n  " ^ show_expr e
   | Let { p_1; omega; p_2; e } ->
-      "let " ^ show_pat p_1 ^ " = " ^ show_iso omega ^ " " ^ show_pat p_2
+      "let " ^ show_value p_1 ^ " = " ^ show_iso omega ^ " " ^ show_value p_2
       ^ " in\n  " ^ show_expr e
 
 and show_pairs (pairs : (value * expr) list) : string =
@@ -229,9 +219,9 @@ let rec show_term : term -> string = function
       show_iso omega ^ " (" ^ show_term t ^ ")"
   | App { omega; t } -> show_iso omega ^ " " ^ show_term t
   | Let { p; t_1; t_2 } ->
-      "let " ^ show_pat p ^ " = " ^ show_term t_1 ^ " in\n" ^ show_term t_2
+      "let " ^ show_value p ^ " = " ^ show_term t_1 ^ "\nin\n\n" ^ show_term t_2
   | LetIso { phi; omega; t } ->
-      "let iso " ^ phi ^ " = " ^ show_iso omega ^ " in\n" ^ show_term t
+      "let iso " ^ phi ^ " = " ^ show_iso omega ^ "\nin\n\n" ^ show_term t
 
 let rec nat_of_int (n : int) : value =
   if n < 1 then Ctor "Z" else Cted { c = "S"; v = nat_of_int (n - 1) }
@@ -253,7 +243,3 @@ let rec collect_vars : value -> string list = function
   | Ctor _ -> []
   | Cted { v; _ } -> collect_vars v
   | Tuple l -> List.map collect_vars l |> List.flatten
-
-let rec collect_vars_pat : pat -> string list = function
-  | Named x -> [ x ]
-  | Tuple l -> List.map collect_vars_pat l |> List.flatten

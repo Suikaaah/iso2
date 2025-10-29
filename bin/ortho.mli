@@ -8,7 +8,6 @@ type generator
 val fresh : generator -> int
 val subst : subst -> value -> value
 val subst_in_equations : subst -> equation list -> equation list
-val subst_in_pat : what:string -> into:string -> pat -> pat
 val subst_in_expr : what:string -> into:string -> expr -> expr
 val occurs : string -> value -> bool
 val is_free : string -> value -> bool

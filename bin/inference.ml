@@ -187,15 +187,6 @@ let finalize ({ a; e } : inferred) : any myresult =
   let++ substs = unify e in
   List.fold_left (fun a s -> subst s a) a substs
 
-let rec context_of_pat (gen : generator) (p : Types.pat) : any * any StrMap.t =
-  match p with
-  | Named x ->
-      let fresh = Var (fresh gen) in
-      (fresh, StrMap.singleton x fresh)
-  | Tuple l ->
-      let base_types, binds = List.map (context_of_pat gen) l |> List.split in
-      (Product base_types, union_list binds)
-
 (* todo: optimization *)
 let find_generalizable (a : any) (ctx : context) : int list =
   let module IntSet = Set.Make (Int) in
@@ -220,31 +211,11 @@ let find_generalizable (a : any) (ctx : context) : int list =
   in
   IntSet.diff (find_in_any a) (find_in_context ctx) |> IntSet.to_list
 
-let generalize (e : equation list) (ctx : context) (p : Types.pat) (a : any)
-    (gen : generator) : (context * equation) myresult =
-  let++ substs = unify e in
-  let u = List.fold_left (fun a s -> subst s a) a substs in
-  let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
-  let product, binds = context_of_pat gen p in
-  let generalized =
-    let forall = find_generalizable u ctx in
-    StrMap.map (fun a -> Scheme { forall; a }) binds
-  in
-  (union ~weak:ctx ~strong:generalized, (u, product))
-
-let generalize_iso (e : equation list) (ctx : context) (phi : string) (a : any)
-    : context myresult =
-  let++ substs = unify e in
-  let u = List.fold_left (fun a s -> subst s a) a substs in
-  let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
-  let generalized = Scheme { forall = find_generalizable u ctx; a = u } in
-  StrMap.add phi generalized ctx
-
-let rec extract_named (gen : generator) (v : Types.value) : context =
+let rec extract_named (gen : generator) (v : Types.value) : any StrMap.t =
   match v with
   | Var x ->
       let var = Var (fresh gen) in
-      StrMap.singleton x (Mono var)
+      StrMap.singleton x var
   | Unit | Ctor _ -> StrMap.empty
   | Cted { v; _ } -> extract_named gen v
   | Tuple l -> union_list (List.map (extract_named gen) l)
@@ -300,12 +271,11 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
         let++ _ = List.map check_in_value l |> bind_all in
         ()
   in
-  let rec collect_in_pat : Types.pat -> _ = function
-    | Types.Named x -> add x
-    | Types.Tuple l -> List.iter collect_in_pat l
-  in
-  let rec check_in_pat : Types.pat -> _ = function
-    | Types.Named x -> consume x
+  let rec check_in_pat = function
+    | Types.Cted { v; _ } -> check_in_pat v
+    | Types.Unit -> Ok ()
+    | Types.Var x -> consume x
+    | Types.Ctor _ -> Ok ()
     | Types.Tuple l ->
         let++ _ = List.map check_in_pat l |> bind_all in
         ()
@@ -313,16 +283,40 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
   let rec check_in_expr : Types.expr -> _ = function
     | Types.Let { p_1; p_2; e; _ } ->
         let** _ = check_in_pat p_2 in
-        collect_in_pat p_1;
+        collect_in_value p_1;
         check_in_expr e
     | Types.Value v -> check_in_value v
   in
   collect_in_value v';
   check_in_expr e'
 
-let rec infer_pair (gen : generator) (ctx : context)
+let generalize_iso (e : equation list) (ctx : context) (phi : string) (a : any)
+    : context myresult =
+  let++ substs = unify e in
+  let u = List.fold_left (fun a s -> subst s a) a substs in
+  let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
+  let generalized = Scheme { forall = find_generalizable u ctx; a = u } in
+  StrMap.add phi generalized ctx
+
+let rec generalize (e : equation list) (ctx : context) (p : Types.value)
+    (a : any) (gen : generator) : (context * equation list) myresult =
+  let** substs = unify e in
+  let u = List.fold_left (fun a s -> subst s a) a substs in
+  let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
+  let extracted = extract_named gen p in
+  let generalized =
+    let forall = find_generalizable u ctx in
+    StrMap.map (fun a -> Scheme { forall; a }) extracted
+  in
+  let ctx = union ~weak:ctx ~strong:(StrMap.map (fun x -> Mono x) extracted) in
+  let++ { a = a_p; e = e_p } = infer_term (Types.term_of_value p) gen ctx in
+  (union ~weak:ctx ~strong:generalized, (u, a_p) :: e_p)
+
+and infer_pair (gen : generator) (ctx : context)
     ((v, e) : Types.value * Types.expr) : inferred_pair myresult =
-  let ctx = union ~weak:ctx ~strong:(extract_named gen v) in
+  let ctx =
+    union ~weak:ctx ~strong:(extract_named gen v |> StrMap.map (fun x -> Mono x))
+  in
   let** { a = a_v; e = e_v } = infer_term (Types.term_of_value v) gen ctx in
   let++ { a = a_e; e = e_e } = infer_expr e gen ctx in
   { a_v; a_e; e = e_v @ e_e }
@@ -346,14 +340,14 @@ and infer_term (t : Types.term) (gen : generator) (ctx : context) :
       let fresh = Var (fresh gen) in
       { a = fresh; e = (a_1, BiArrow { a = a_2; b = fresh }) :: e }
   | Let { p; t_1; t_2 } ->
-      let collected = Types.collect_vars_pat p in
+      let collected = Types.collect_vars p in
       let dup_removed = List.sort_uniq compare collected in
       if List.compare_lengths collected dup_removed = 0 then
         let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
-        let** ctx, e = generalize e_1 ctx p a_1 gen in
+        let** ctx, es = generalize e_1 ctx p a_1 gen in
         let++ { a = a_2; e = e_2 } = infer_term t_2 gen ctx in
-        { a = a_2; e = (e :: e_1) @ e_2 }
-      else Error ("duplicated variable(s) found in " ^ Types.show_pat p)
+        { a = a_2; e = e_1 @ es @ e_2 }
+      else Error ("duplicated variable(s) found in " ^ Types.show_value p)
   | LetIso { phi; omega; t } ->
       let** { a = a_1; e = e_1 } = infer_iso omega gen ctx in
       let** ctx = generalize_iso e_1 ctx phi a_1 in
@@ -365,11 +359,11 @@ and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
   match expr with
   | Value v -> infer_term (Types.term_of_value v) gen ctx
   | Let { p_1; omega; p_2; e = expr } ->
-      let t_1 = Types.App { omega; t = Types.term_of_pat p_2 } in
+      let t_1 = Types.App { omega; t = Types.term_of_value p_2 } in
       let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
-      let** ctx, e = generalize e_1 ctx p_1 a_1 gen in
+      let** ctx, es = generalize e_1 ctx p_1 a_1 gen in
       let++ { a = a_2; e = e_2 } = infer_expr expr gen ctx in
-      { a = a_2; e = (e :: e_1) @ e_2 }
+      { a = a_2; e = e_1 @ es @ e_2 }
 
 and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
     inferred myresult =

@@ -19,11 +19,9 @@ type value =
   | Cted of { c : string; v : value }
   | Tuple of value list
 
-type pat = Named of string | Tuple of pat list
-
 type expr =
   | Value of value
-  | Let of { p_1 : pat; omega : iso; p_2 : pat; e : expr }
+  | Let of { p_1 : value; omega : iso; p_2 : value; e : expr }
 
 and iso =
   | Pairs of (value * expr) list
@@ -39,7 +37,7 @@ type term =
   | Named of string
   | Tuple of term list
   | App of { omega : iso; t : term }
-  | Let of { p : pat; t_1 : term; t_2 : term }
+  | Let of { p : value; t_1 : term; t_2 : term }
   | LetIso of { phi : string; omega : iso; t : term }
 
 type variant = Value of string | Iso of { c : string; a : base_type }
@@ -47,10 +45,8 @@ type typedef = { vars : string list; t : string; vs : variant list }
 type program = { ts : typedef list; t : term }
 
 val term_of_value : value -> term
-val term_of_pat : pat -> term
 val term_of_expr : expr -> term
 val value_of_expr : expr -> value
-val contains : string -> pat -> bool
 val contains_value : string -> value -> bool
 val contains_pairs : string -> (value * expr) list -> bool
 val lambdas_of_params : string list -> iso -> iso
@@ -61,7 +57,6 @@ val is_int_term : term -> bool
 val show_base_type : base_type -> string
 val show_iso_type : iso_type -> string
 val show_value : value -> string
-val show_pat : pat -> string
 val show_expr : expr -> string
 val show_pairs : (value * expr) list -> string
 val show_iso : iso -> string
@@ -70,4 +65,3 @@ val show_term : term -> string
 val nat_of_int : int -> value
 val build_storage : 'a -> value -> 'a option StrMap.t
 val collect_vars : value -> string list
-val collect_vars_pat : pat -> string list
