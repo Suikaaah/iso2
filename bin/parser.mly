@@ -42,6 +42,8 @@
 %type <value> value_nogroup
 %type <value> value
 %type <expr> expr
+%type <iso> iso_nogroup_novar
+%type <iso> iso_novar
 %type <iso> iso_nogroup
 %type <iso> iso
 %type <term> term_nogroup
@@ -85,6 +87,18 @@ base_type:
   | LPAREN; t = base_type; RPAREN; { t }
   | LPAREN; ts = wtf(COMMA, base_type); RPAREN; a = VAR; { Ctor (ts, a) }
 
+iso_nogroup_novar:
+  | LBRACE; omega = iso; RBRACE; { omega }
+  | x = CTOR; { Ctor x }
+
+iso_novar:
+  | INVERT; omega = iso_nogroup; { Invert omega }
+  | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
+  | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
+  | FUN; params = param+; ARROW; omega = iso; { lambdas_of_params params omega }
+  | omega_1 = iso_novar; omega_2 = iso_nogroup; { App { omega_1; omega_2 } }
+  | omega = iso_nogroup_novar; { omega }
+
 value_nogroup:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; v = value; RPAREN; { v }
@@ -108,6 +122,8 @@ value:
 
 expr:
   | v = value; { Value v }
+  | LET; p_1 = value; EQUAL; v = VAR; IN; e = expr; { LetVal { p_1; v; e } }
+  | LET; p_1 = value; EQUAL; omega = VAR; p_2 = value_nogroup; IN; e = expr; { Let { p_1; omega = Var omega; p_2; e } }
   | LET; p_1 = value; EQUAL; omega = iso; p_2 = value_nogroup; IN; e = expr; { Let { p_1; omega; p_2; e } }
   | LET; p_1 = value; EQUAL; MATCH; p_2 = value; WITH;
     PIPE?; p = separated_nonempty_list(PIPE, biarrowed); IN; e = expr;
