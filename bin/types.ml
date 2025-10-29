@@ -22,6 +22,7 @@ type value =
 type expr =
   | Value of value
   | Let of { p_1 : value; omega : iso; p_2 : value; e : expr }
+  | LetVal of { p : value; v : value; e : expr }
 
 and iso =
   | Pairs of (value * expr) list
@@ -59,10 +60,12 @@ let rec term_of_expr : expr -> term = function
           t_1 = App { omega; t = term_of_value p_2 };
           t_2 = term_of_expr e;
         }
+  | LetVal { p; v; e } -> Let { p; t_1 = term_of_value v; t_2 = term_of_expr e }
 
 let rec value_of_expr : expr -> value = function
   | Value v -> v
   | Let { e; _ } -> value_of_expr e
+  | LetVal { e; _ } -> value_of_expr e
 
 let rec contains_value (what : string) : value -> bool = function
   | Unit -> false
@@ -161,6 +164,8 @@ let rec show_expr : expr -> string = function
   | Let { p_1; omega; p_2; e } ->
       "let " ^ show_value p_1 ^ " = " ^ show_iso omega ^ " " ^ show_value p_2
       ^ " in\n  " ^ show_expr e
+  | LetVal { p; v; e } ->
+      "let " ^ show_value p ^ " = " ^ show_value v ^ " in\n  " ^ show_expr e
 
 and show_pairs (pairs : (value * expr) list) : string =
   List.fold_left

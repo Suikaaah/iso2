@@ -1,6 +1,35 @@
 open Types
 open Util
 
+let matches (u : value) (v : value) : bool =
+  let map_u = build_storage None u |> ref in
+
+  let matches x v map =
+    match StrMap.find_opt x !map with
+    | None | Some None -> true
+    (* more than one occurrence but not memoed *)
+    | Some (Some None) ->
+        map := StrMap.add x (Some (Some v)) !map;
+        true
+    (* memoed *)
+    | Some (Some (Some v')) -> v = v'
+  in
+
+  let rec body ((u, v) : value * value) : bool =
+    match (u, v) with
+    | Unit, Unit -> true
+    | Var x, _ -> matches x v map_u
+    | Ctor x, Ctor y -> x = y
+    | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
+        c_1 = c_2 && body (v_1, v_2)
+    | Tuple l, Tuple r ->
+        Option.map (List.for_all body) (combine l r)
+        |> Option.value ~default:false
+    | _ -> false
+  in
+
+  body (u, v)
+
 let rec invert (omega : iso) : iso =
   match omega with
   | Pairs p ->
@@ -8,8 +37,10 @@ let rec invert (omega : iso) : iso =
         match e with
         | Value v -> (v, acc)
         | Let { p_1; omega; p_2; e } ->
-            invert_expr e
-              (Let { p_1 = p_2; omega = invert omega; p_2 = p_1; e = acc })
+            Let { p_1 = p_2; omega = invert omega; p_2 = p_1; e = acc }
+            |> invert_expr e
+        | LetVal { p; v; e } ->
+            LetVal { p = v; v = p; e = acc } |> invert_expr e
       in
       let invert_pair (v, e) = invert_expr e (Value v) in
       Pairs (List.map invert_pair p)
@@ -64,6 +95,12 @@ and subst_iso_in_expr ~(from : string) ~(into : iso) ~(what : expr) : expr =
         else subst_iso_in_expr ~from ~into ~what:e
       in
       Let { p_1; omega; p_2; e }
+  | LetVal { p; v; e } ->
+      let e =
+        if contains_value from p then e
+        else subst_iso_in_expr ~from ~into ~what:e
+      in
+      LetVal { p; v; e }
 
 let rec subst_iso_in_term ~(from : string) ~(into : iso) ~(what : term) : term =
   let subst_iso_in_term what = subst_iso_in_term ~from ~into ~what in
@@ -96,35 +133,7 @@ let rec value_of_term (t : term) : value myresult =
   | _ -> Error ("unreachable (unreduced term: " ^ show_term t ^ ")")
 
 let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
-  let vv ((u, v) : value * value) : bool =
-    let map_u = build_storage None u |> ref in
-
-    let matches x v map =
-      match StrMap.find_opt x !map with
-      | None | Some None -> true
-      (* more than one occurrence but not memoed *)
-      | Some (Some None) ->
-          map := StrMap.add x (Some (Some v)) !map;
-          true
-      (* memoed *)
-      | Some (Some (Some v')) -> v = v'
-    in
-
-    let rec body ((u, v) : value * value) : bool =
-      match (u, v) with
-      | Unit, Unit -> true
-      | Var x, _ -> matches x v map_u
-      | Ctor x, Ctor y -> x = y
-      | Cted { c = c_1; v = v_1 }, Cted { c = c_2; v = v_2 } ->
-          c_1 = c_2 && body (v_1, v_2)
-      | Tuple l, Tuple r ->
-          Option.map (List.for_all body) (combine l r)
-          |> Option.value ~default:false
-      | _ -> false
-    in
-    body (u, v)
-  in
-  List.find_opt (fun (v', _) -> vv (v', v)) l
+  List.find_opt (fun (v', _) -> matches v' v) l
 
 let rec unify_value (u : value) (v : value) : (string * value) list myresult =
   match (u, v) with
@@ -169,11 +178,13 @@ let rec eval (t : term) : term myresult =
     end
   | Let { p; t_1; t_2 } -> begin
       let** t_1 = Result.bind (eval t_1) value_of_term in
-      let** unified = unify_value p t_1 in
-      List.fold_left
-        (fun t (from, into) -> subst ~from ~into:(term_of_value into) ~what:t)
-        t_2 unified
-      |> eval
+      if matches p t_1 then
+        let** unified = unify_value p t_1 in
+        List.fold_left
+          (fun t (from, into) -> subst ~from ~into:(term_of_value into) ~what:t)
+          t_2 unified
+        |> eval
+      else Error ("unable to unify " ^ show_value p ^ " and " ^ show_value t_1)
     end
   | LetIso { phi; omega; t } ->
       let omega = eval_iso omega in

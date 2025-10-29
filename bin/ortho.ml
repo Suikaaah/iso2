@@ -34,6 +34,15 @@ let rec subst_in_expr ~(what : string) ~(into : string) : expr -> expr =
           p_2 = subst { what; into = Var into } p_2;
           e = subst_in_expr ~what ~into e;
         }
+  | LetVal { p; v; e } when contains_value what p ->
+      LetVal { p; v = subst { what; into = Var into } v; e }
+  | LetVal { p; v; e } ->
+      LetVal
+        {
+          p;
+          v = subst { what; into = Var into } v;
+          e = subst_in_expr ~what ~into e;
+        }
 
 let rec occurs (x : string) : value -> bool = function
   | Unit -> false
@@ -107,7 +116,7 @@ let is_orthogonal (u : value) (v : value) : unit myresult =
       Error msg
   | Error () -> Ok ()
 
-let convert_pair ((v, e) : value * expr) : (value * expr) myresult =
+let convert_pair ((v, e) : value * expr) : value * expr =
   let gen = { i = 0 } in
 
   (* ' is needed for creating fresh names due to the let exprs *)
@@ -125,28 +134,42 @@ let convert_pair ((v, e) : value * expr) : (value * expr) myresult =
     List.fold_left (fun e (what, into) -> subst_in_expr ~what ~into e) e substs
   in
 
-  let rec process_expr : expr -> expr myresult = function
-    | Value e -> Ok (Value e)
+  let rec process_expr : expr -> expr = function
+    | Value e -> Value e
     | Let { p_1; omega; p_2; e } ->
-        let vars = collect_vars p_1 in
-        let vars_nodup = vars |> List.sort_uniq compare in
-        if List.compare_lengths vars vars_nodup = 0 (* no duplicates *) then
-          let substs = List.map (fun x -> (x, fresh_name ())) vars in
-          let p_1 =
-            List.fold_left
-              (fun p (what, into) -> subst { what; into = Var into } p)
-              p_1 substs
-          in
-          let e =
-            List.fold_left
-              (fun e (what, into) -> subst_in_expr ~what ~into e)
-              e substs
-          in
-          let++ e = process_expr e in
-          let lmao : expr = Let { p_1; omega; p_2; e } in
-          lmao
-        else Error ("duplicated variable(s) found in " ^ show_value p_1)
+        let vars = collect_vars p_1 |> List.sort_uniq compare in
+        let substs = List.map (fun x -> (x, fresh_name ())) vars in
+        let p_1 =
+          List.fold_left
+            (fun p (what, into) -> subst { what; into = Var into } p)
+            p_1 substs
+        in
+        let e =
+          List.fold_left
+            (fun e (what, into) -> subst_in_expr ~what ~into e)
+            e substs
+        in
+        let e = process_expr e in
+        let lmao : expr = Let { p_1; omega; p_2; e } in
+        lmao
+    | LetVal { p; v; e } ->
+        (* todo: dry *)
+        let vars = collect_vars p |> List.sort_uniq compare in
+        let substs = List.map (fun x -> (x, fresh_name ())) vars in
+        let p =
+          List.fold_left
+            (fun p (what, into) -> subst { what; into = Var into } p)
+            p substs
+        in
+        let e =
+          List.fold_left
+            (fun e (what, into) -> subst_in_expr ~what ~into e)
+            e substs
+        in
+        let e = process_expr e in
+        let lmao : expr = LetVal { p; v; e } in
+        lmao
   in
 
-  let++ e = process_expr e in
+  let e = process_expr e in
   (v, e)

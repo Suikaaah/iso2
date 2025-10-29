@@ -1,6 +1,7 @@
 open Types
 open Util
 
+val matches : value -> value -> bool
 val invert : iso -> iso
 val subst : from:string -> into:term -> what:term -> term
 val subst_iso : from:string -> into:iso -> what:iso -> iso

@@ -226,14 +226,15 @@ let invert_pairs (pairs : (Types.value * Types.expr) list) :
     match e with
     | Value v -> (v, acc)
     | Let { p_1; omega; p_2; e } ->
-        invert_expr e
-          (Let { p_1 = p_2; omega = Invert omega; p_2 = p_1; e = acc })
+        Let { p_1 = p_2; omega = Invert omega; p_2 = p_1; e = acc }
+        |> invert_expr e
+    | LetVal { p; v; e } -> LetVal { p = v; v = p; e = acc } |> invert_expr e
   in
   let invert_pair (v, e) = invert_expr e (Value v) in
   List.map invert_pair pairs
 
 let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
-  let** v', e' = Ortho.convert_pair (v, e) in
+  let v', e' = Ortho.convert_pair (v, e) in
   let msg =
     lazy
       (" in branch " ^ Types.show_value v' ^ " <-> " ^ Types.show_expr e'
@@ -271,19 +272,16 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
         let++ _ = List.map check_in_value l |> bind_all in
         ()
   in
-  let rec check_in_pat = function
-    | Types.Cted { v; _ } -> check_in_pat v
-    | Types.Unit -> Ok ()
-    | Types.Var x -> consume x
-    | Types.Ctor _ -> Ok ()
-    | Types.Tuple l ->
-        let++ _ = List.map check_in_pat l |> bind_all in
-        ()
-  in
   let rec check_in_expr : Types.expr -> _ = function
     | Types.Let { p_1; p_2; e; _ } ->
-        let** _ = check_in_pat p_2 in
+        let vars = Types.collect_vars p_2 |> List.sort_uniq compare in
+        let** _ = List.map consume vars |> bind_all in
         collect_in_value p_1;
+        check_in_expr e
+    | Types.LetVal { p; v; e } ->
+        let vars = Types.collect_vars v |> List.sort_uniq compare in
+        let** _ = List.map consume vars |> bind_all in
+        collect_in_value p;
         check_in_expr e
     | Types.Value v -> check_in_value v
   in
@@ -340,14 +338,10 @@ and infer_term (t : Types.term) (gen : generator) (ctx : context) :
       let fresh = Var (fresh gen) in
       { a = fresh; e = (a_1, BiArrow { a = a_2; b = fresh }) :: e }
   | Let { p; t_1; t_2 } ->
-      let collected = Types.collect_vars p in
-      let dup_removed = List.sort_uniq compare collected in
-      if List.compare_lengths collected dup_removed = 0 then
-        let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
-        let** ctx, es = generalize e_1 ctx p a_1 gen in
-        let++ { a = a_2; e = e_2 } = infer_term t_2 gen ctx in
-        { a = a_2; e = e_1 @ es @ e_2 }
-      else Error ("duplicated variable(s) found in " ^ Types.show_value p)
+      let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
+      let** ctx, es = generalize e_1 ctx p a_1 gen in
+      let++ { a = a_2; e = e_2 } = infer_term t_2 gen ctx in
+      { a = a_2; e = e_1 @ es @ e_2 }
   | LetIso { phi; omega; t } ->
       let** { a = a_1; e = e_1 } = infer_iso omega gen ctx in
       let** ctx = generalize_iso e_1 ctx phi a_1 in
@@ -362,6 +356,11 @@ and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
       let t_1 = Types.App { omega; t = Types.term_of_value p_2 } in
       let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
       let** ctx, es = generalize e_1 ctx p_1 a_1 gen in
+      let++ { a = a_2; e = e_2 } = infer_expr expr gen ctx in
+      { a = a_2; e = e_1 @ es @ e_2 }
+  | LetVal { p; v; e = expr } ->
+      let** { a = a_1; e = e_1 } = infer_term (Types.term_of_value v) gen ctx in
+      let** ctx, es = generalize e_1 ctx p a_1 gen in
       let++ { a = a_2; e = e_2 } = infer_expr expr gen ctx in
       { a = a_2; e = e_1 @ es @ e_2 }
 

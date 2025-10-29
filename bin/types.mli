@@ -22,6 +22,7 @@ type value =
 type expr =
   | Value of value
   | Let of { p_1 : value; omega : iso; p_2 : value; e : expr }
+  | LetVal of { p : value; v : value; e : expr }
 
 and iso =
   | Pairs of (value * expr) list

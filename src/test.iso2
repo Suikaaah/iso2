@@ -23,8 +23,21 @@ iso rev = case
       l
 in
 
-let r = rev [1; 3; 4; 9] in
+iso f = case
+  | x <->
+      let (y, y) = (x, x) in
+      let (y, y) = (y, y) in
+      y
+in
 
-iso f = case x <-> let y = Some 3 :: [x] in y in
+iso rec fold_left f = case
+  | (acc, []) <-> (acc, [])
+  | (acc, x :: xs) <->
+      let (x, x') = (x, x) in
+      let acc = f (acc, x) in
+      let (acc, xs) = fold_left f (acc, xs) in
+      (acc, x' :: xs)
+in
 
-invert f [4; 5]
+fold_left {case (acc, x) <-> x :: acc} ([], [1; 2; 3; 4])
+
