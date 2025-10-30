@@ -18,16 +18,6 @@ iso rec add = case
   | (m, 0) <-> (m, 0)
 in
 
-(* -------- misc -------- *)
-
-iso rec list_map f = case
-  | h :: t <->
-      let h = f h in
-      let t = list_map f t in
-      h :: t
-  | [] <-> []
-in
-
 iso rec cantor_pairing = case x <->
   let y = match x with
     | (S i, j) <-> Some (i, S j)
@@ -40,6 +30,8 @@ iso rec cantor_pairing = case x <->
   in z
 in
 
+(* -------- misc -------- *)
+
 iso option_map f = case
   | None   <-> None
   | Some x <-> let y = f x in Some y
@@ -48,6 +40,21 @@ in
 iso compose g f = case x <->
   let x = f x in
   let x = g x in x
+in
+
+iso if then else = case
+  | (True, x) <-> let x = then x in (True, x)
+  | (False, x) <-> let x = else x in (False, x)
+in
+
+(* -------- list -------- *)
+
+iso rec list_map f = case
+  | h :: t <->
+      let h = f h in
+      let t = list_map f t in
+      h :: t
+  | [] <-> []
 in
 
 iso rec len = case
@@ -76,15 +83,6 @@ iso rec double = case
       x :: x :: xs
 in
 
-iso if then else = case
-  | (True, x) <-> let x = then x in (True, x)
-  | (False, x) <-> let x = else x in (False, x)
-in
-
-let hi = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
-
-let asdf = if double {list_map S} (True, hi) in
-
 iso rec rev = case
   | ([], l, 0) <-> ([], l, 0)
   | (x :: xs, l, S n) <->
@@ -92,12 +90,11 @@ iso rec rev = case
       (xs, l, S n)
 in
 
-iso rev = case
-  | l <->
-      let (l, n) = len l in
-      let ([], l, n) = rev (l, [], n) in
-      let l = invert len (l, n) in
-      l
+iso rev = case l <->
+  let (l, n) = len l in
+  let ([], l, n) = rev (l, [], n) in
+  let l = invert len (l, n) in
+  l
 in
 
 iso rec fold_left f = case
