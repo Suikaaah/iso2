@@ -4,13 +4,7 @@ open Util
 
 type err = Syntax of string | Type of string | Runtime of string
 
-let read_program path =
-  let read_to_string path = open_in path |> In_channel.input_all in
-  let stdlib = read_to_string "src/stdlib.iso2" |> Lexer.parse_stdlib in
-  let read = read_to_string path in
-  let++ { t; ts } = Lexer.parse read in
-  { t; ts = ts @ stdlib }
-
+let read_program path = open_in path |> In_channel.input_all |> Lexer.parse
 let report name e = boldred name ^ ": " ^ e |> print_endline
 let to_syntax r = Result.map_error (fun e -> Syntax e) r
 let to_type r = Result.map_error (fun e -> Type e) r

@@ -121,10 +121,7 @@ let convert_pair ((v, e) : value * expr) : value * expr =
 
   (* ' is needed for creating fresh names due to the let exprs *)
   let fresh_name () = "'" ^ chars_of_int (fresh gen) in
-  let substs =
-    collect_vars v |> List.sort_uniq compare
-    |> List.map (fun x -> (x, fresh_name ()))
-  in
+  let substs = collect_vars v |> List.map (fun x -> (x, fresh_name ())) in
   let v =
     List.fold_left
       (fun v (what, into) -> subst { what; into = Var into } v)
@@ -134,42 +131,31 @@ let convert_pair ((v, e) : value * expr) : value * expr =
     List.fold_left (fun e (what, into) -> subst_in_expr ~what ~into e) e substs
   in
 
-  let rec process_expr : expr -> expr = function
+  let rec process_expr : expr -> expr =
+    let process p_1 e =
+      let vars = collect_vars p_1 in
+      let substs = List.map (fun x -> (x, fresh_name ())) vars in
+      let p_1 =
+        List.fold_left
+          (fun p (what, into) -> subst { what; into = Var into } p)
+          p_1 substs
+      in
+      let e =
+        List.fold_left
+          (fun e (what, into) -> subst_in_expr ~what ~into e)
+          e substs
+      in
+      let e = process_expr e in
+      (p_1, e)
+    in
+    function
     | Value e -> Value e
     | Let { p_1; omega; p_2; e } ->
-        let vars = collect_vars p_1 |> List.sort_uniq compare in
-        let substs = List.map (fun x -> (x, fresh_name ())) vars in
-        let p_1 =
-          List.fold_left
-            (fun p (what, into) -> subst { what; into = Var into } p)
-            p_1 substs
-        in
-        let e =
-          List.fold_left
-            (fun e (what, into) -> subst_in_expr ~what ~into e)
-            e substs
-        in
-        let e = process_expr e in
-        let lmao : expr = Let { p_1; omega; p_2; e } in
-        lmao
+        let p_1, e = process p_1 e in
+        Let { p_1; omega; p_2; e }
     | LetVal { p; v; e } ->
-        (* todo: dry *)
-        let vars = collect_vars p |> List.sort_uniq compare in
-        let substs = List.map (fun x -> (x, fresh_name ())) vars in
-        let p =
-          List.fold_left
-            (fun p (what, into) -> subst { what; into = Var into } p)
-            p substs
-        in
-        let e =
-          List.fold_left
-            (fun e (what, into) -> subst_in_expr ~what ~into e)
-            e substs
-        in
-        let e = process_expr e in
-        let lmao : expr = LetVal { p; v; e } in
-        lmao
+        let p, e = process p e in
+        LetVal { p; v; e }
   in
 
-  let e = process_expr e in
-  (v, e)
+  (v, process_expr e)

@@ -37,7 +37,6 @@
 %token <string> CTOR
 
 %start <program> program
-%start <typedef list> stdlib
 %type <base_type> base_type
 %type <value> value_nogroup
 %type <value> value
@@ -60,9 +59,6 @@ wtf(separator, X):
 
 program:
   | ts = typedef*; t = term; EOF; { { ts; t } }
-
-stdlib:
-  | ts = typedef*; EOF; { ts }
 
 typedef:
   | TYPE; t = VAR; EQUAL; PIPE?; vs = separated_nonempty_list(PIPE, variant);

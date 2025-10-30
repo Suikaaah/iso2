@@ -61,7 +61,7 @@ val show_value : value -> string
 val show_expr : expr -> string
 val show_pairs : (value * expr) list -> string
 val show_iso : iso -> string
-val show_pairs_lhs : (value * expr) list -> string
+val show_pairs_lhs : value -> (value * expr) list -> string
 val show_term : term -> string
 val nat_of_int : int -> value
 val build_storage : 'a -> value -> 'a option StrMap.t

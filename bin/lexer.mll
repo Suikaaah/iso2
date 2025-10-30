@@ -64,5 +64,4 @@ rule read = parse
     | Error -> Error (string_of_lb lexbuf)
 
   let parse str = from_string str |> parse_res
-  let parse_stdlib str = from_string str |> stdlib read
 }

@@ -1,43 +1,7 @@
-iso clone = case x <-> (x, x) in
-iso with_nil = case x <-> (x, []) in
+type h = Left | Right
+type v = Down | Up
+type 'a option = None | Some of 'a
+type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 
-iso rec len = case
-  | [] <-> ([], 0)
-  | x :: xs <->
-      let (xs, n) = len xs in
-      (x :: xs, S n)
-in
-
-iso rec rev = case
-  | ([], l, 0) <-> ([], l, 0)
-  | (x :: xs, l, S n) <->
-      let (xs, l, n) = rev (xs, x :: l, n) in
-      (xs, l, S n)
-in
-
-iso rev = case
-  | l <->
-      let (l, n) = len l in
-      let ([], l, n) = rev (l, [], n) in
-      let l = invert len (l, n) in
-      l
-in
-
-iso f = case
-  | x <->
-      let (y, y) = (x, x) in
-      let (y, y) = (y, y) in
-      y
-in
-
-iso rec fold_left f = case
-  | (acc, []) <-> (acc, [])
-  | (acc, x :: xs) <->
-      let (x, x') = (x, x) in
-      let acc = f (acc, x) in
-      let (acc, xs) = fold_left f (acc, xs) in
-      (acc, x' :: xs)
-in
-
-fold_left {case (acc, x) <-> x :: acc} ([], [1; 2; 3; 4])
-
+let asdf = None in
+([Some Left; asdf], [Some Down; asdf])

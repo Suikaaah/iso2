@@ -1,6 +1,24 @@
-iso swap = case (x, y) <-> (y, x) in
-iso id = case x <-> x in
-iso clone = case x <-> (x, x) in
+type bool = False | True
+type 'a option = None | Some of 'a
+type ('a, 'e) result = Ok of 'a | Error of 'e
+type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
+type nat = Z (* 0 *) | S (* > 0 *) of nat
+
+(* -------- nat -------- *)
+
+iso rec is_even = case
+  | 0 <-> (0, True)
+  | 1 <-> (1, False)
+  | S (S x) <-> let (x, b) = is_even x in (S (S x), b)
+in
+
+(* add (x, y) = (x + y, y) *)
+iso rec add = case
+  | (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
+  | (m, 0) <-> (m, 0)
+in
+
+(* -------- misc -------- *)
 
 iso rec list_map f = case
   | h :: t <->
@@ -10,25 +28,16 @@ iso rec list_map f = case
   | [] <-> []
 in
 
-(* add (x, y) = (x + y, y) *)
-iso rec add = case
-  | (m, S n) <->
-      let (m, n) = add (S m, n) in
-      (m, S n)
-  | (m, 0) <-> (m, 0)
-in
-
-iso rec cantor_pairing = case
-  | x <->
-      let y = match x with
-        | (S i, j) <-> Some (i, S j)
-        | (0, S j) <-> Some (j, 0)
-        | (0, 0)   <-> None
-      in
-      let z = match y with
-        | Some x <-> let y = cantor_pairing x in S y
-        | None   <-> 0
-      in z
+iso rec cantor_pairing = case x <->
+  let y = match x with
+    | (S i, j) <-> Some (i, S j)
+    | (0, S j) <-> Some (j, 0)
+    | (0, 0)   <-> None
+  in
+  let z = match y with
+    | Some x <-> let y = cantor_pairing x in S y
+    | None   <-> 0
+  in z
 in
 
 iso option_map f = case
@@ -36,18 +45,14 @@ iso option_map f = case
   | Some x <-> let y = f x in Some y
 in
 
-iso compose g f = case
-  | x <->
-      let x = f x in
-      let x = g x in
-      x
+iso compose g f = case x <->
+  let x = f x in
+  let x = g x in x
 in
 
 iso rec len = case
   | [] <-> ([], 0)
-  | h :: t <->
-      let (t, n) = len t in
-      (h :: t, S n)
+  | x :: xs <-> let (xs, n) = len xs in (x :: xs, S n)
 in
 
 iso rec snoc' = case
@@ -57,23 +62,12 @@ iso rec snoc' = case
       (h :: t, x, S n)
 in
 
-iso snoc = case
-  | (x, y) <->
-      let (x, n) = len x in
-      let (x, y, n) = snoc' (x, y, n) in
-      let z = invert len (x, S n) in
-      (z, y)
+iso snoc = case (x, y) <->
+  let (x, n) = len x in
+  let (x, y, n) = snoc' (x, y, n) in
+  let z = invert len (x, S n) in
+  (z, y)
 in
-
-iso rec rev_aux = case
-  | ([], y) <-> ([], y)
-  | (h :: t, y) <->
-      let (h1, h2) = clone h in
-      let (t1, t2) = rev_aux (t, h2 :: y) in
-      (h1 :: t1, t2)
-in
-
-iso rev = case l <-> let p = rev_aux (l, []) in p in
 
 iso rec double = case
   | [] <-> []
@@ -87,27 +81,33 @@ iso if then else = case
   | (False, x) <-> let x = else x in (False, x)
 in
 
-iso if then else = case
-  | x <-> let x = if then else x in x
-in
-
 let hi = S 3 :: S 4 :: S 5 :: [let x = 2 in x] in
 
-iso rec is_even = case
-  | 0 <-> (0, True)
-  | 1 <-> (1, False)
-  | S (S x) <-> let (x, b) = is_even x in (S (S x), b)
+let asdf = if double {list_map S} (True, hi) in
+
+iso rec rev = case
+  | ([], l, 0) <-> ([], l, 0)
+  | (x :: xs, l, S n) <->
+      let (xs, l, n) = rev (xs, x :: l, n) in
+      (xs, l, S n)
 in
 
-let asdf = if double {list_map S} (True, hi) in
+iso rev = case
+  | l <->
+      let (l, n) = len l in
+      let ([], l, n) = rev (l, [], n) in
+      let l = invert len (l, n) in
+      l
+in
 
 iso rec fold_left f = case
   | (acc, []) <-> (acc, [])
   | (acc, x :: xs) <->
-      let (x, x') = clone x in
+      let (x, x') = (x, x) in
       let acc = f (acc, x) in
       let (acc, xs) = fold_left f (acc, xs) in
       (acc, x' :: xs)
 in
 
-()
+fold_left {case (acc, x) <-> x :: acc} ([], [1; 2; 3; 4])
+

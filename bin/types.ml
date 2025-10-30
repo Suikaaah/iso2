@@ -183,10 +183,11 @@ and show_iso : iso -> string = function
   | Invert ((Ctor _ | Var _) as omega) -> "invert " ^ show_iso omega
   | Invert omega -> "invert {" ^ show_iso omega ^ "}"
 
-let show_pairs_lhs (pairs : (value * expr) list) : string =
+let show_pairs_lhs (v : value) (pairs : (value * expr) list) : string =
+  let init = "match " ^ show_value v ^ " with" in
   List.fold_left
     (fun acc (v, _) -> acc ^ "\n  | " ^ show_value v ^ " <-> ...")
-    "case" pairs
+    init pairs
 
 let rec show_term : term -> string = function
   | Unit -> "()"
@@ -242,9 +243,12 @@ let rec build_storage (default : 'a) : value -> 'a option StrMap.t = function
            (StrMap.union (fun _ _ _ -> Some (Some default)))
            StrMap.empty
 
-let rec collect_vars : value -> string list = function
-  | Unit -> []
-  | Var x -> [ x ]
-  | Ctor _ -> []
-  | Cted { v; _ } -> collect_vars v
-  | Tuple l -> List.map collect_vars l |> List.flatten
+let collect_vars (v : value) : string list =
+  let rec collect : value -> string list = function
+    | Unit -> []
+    | Var x -> [ x ]
+    | Ctor _ -> []
+    | Cted { v; _ } -> collect v
+    | Tuple l -> List.map collect l |> List.flatten
+  in
+  collect v |> List.sort_uniq compare

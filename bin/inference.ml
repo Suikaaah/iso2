@@ -237,8 +237,8 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
   let v', e' = Ortho.convert_pair (v, e) in
   let msg =
     lazy
-      (" in branch " ^ Types.show_value v' ^ " <-> " ^ Types.show_expr e'
-     ^ "\nsource: " ^ Types.show_value v ^ " <-> " ^ Types.show_expr e)
+      (" in branch " ^ Types.show_value v' ^ " <->\n  " ^ Types.show_expr e'
+     ^ "\nsource: " ^ Types.show_value v ^ " <->\n  " ^ Types.show_expr e)
   in
 
   (* string -> bool (consumed or not) *)
@@ -273,15 +273,10 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
         ()
   in
   let rec check_in_expr : Types.expr -> _ = function
-    | Types.Let { p_1; p_2; e; _ } ->
-        let vars = Types.collect_vars p_2 |> List.sort_uniq compare in
+    | Types.Let { p_1; p_2; e; _ } | Types.LetVal { p = p_1; v = p_2; e } ->
+        let vars = Types.collect_vars p_2 in
         let** _ = List.map consume vars |> bind_all in
         collect_in_value p_1;
-        check_in_expr e
-    | Types.LetVal { p; v; e } ->
-        let vars = Types.collect_vars v |> List.sort_uniq compare in
-        let** _ = List.map consume vars |> bind_all in
-        collect_in_value p;
         check_in_expr e
     | Types.Value v -> check_in_value v
   in
@@ -301,14 +296,21 @@ let rec generalize (e : equation list) (ctx : context) (p : Types.value)
   let** substs = unify e in
   let u = List.fold_left (fun a s -> subst s a) a substs in
   let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
+  let forall = find_generalizable u ctx in
+
   let extracted = extract_named gen p in
-  let generalized =
-    let forall = find_generalizable u ctx in
-    StrMap.map (fun a -> Scheme { forall; a }) extracted
-  in
   let ctx = union ~weak:ctx ~strong:(StrMap.map (fun x -> Mono x) extracted) in
-  let++ { a = a_p; e = e_p } = infer_term (Types.term_of_value p) gen ctx in
-  (union ~weak:ctx ~strong:generalized, (u, a_p) :: e_p)
+  let** { a = a'; e = e' } = infer_term (Types.term_of_value p) gen ctx in
+  let++ substs = unify [ (a', u) ] in
+  let generalized =
+    StrMap.map
+      (fun a ->
+        let a = List.fold_left (fun a s -> subst s a) a substs in
+        Scheme { forall; a })
+      extracted
+  in
+
+  (union ~weak:ctx ~strong:generalized, e')
 
 and infer_pair (gen : generator) (ctx : context)
     ((v, e) : Types.value * Types.expr) : inferred_pair myresult =
