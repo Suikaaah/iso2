@@ -2,7 +2,7 @@ type bool = False | True
 type 'a option = None | Some of 'a
 type ('a, 'e) result = Ok of 'a | Error of 'e
 type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
-type nat = Z (* 0 *) | S (* > 0 *) of nat
+type nat = Z (* 0 *) | S (* n *) of nat
 
 (* -------- nat -------- *)
 
@@ -106,5 +106,5 @@ iso rec fold_left f = case
       (acc, x' :: xs)
 in
 
-fold_left {case (acc, x) <-> x :: acc} ([], [1; 2; 3; 4])
+fold_left (case (acc, x) <-> x :: acc) ([], [1; 2; 3; 4])
 

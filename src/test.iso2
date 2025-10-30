@@ -2,13 +2,6 @@ type bool = False | True
 type 'a option = None | Some of 'a
 type ('a, 'e) result = Ok of 'a | Error of 'e
 type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
-type nat = Z (* 0 *) | S (* > 0 *) of nat
+type nat = Z (* 0 *) | S (* n *) of nat
 
-(* ortho demo *)
-iso f = case
-  | (4, (y, S x), y) <-> Ok (x, y)
-  | (x, (x, y), S y) <-> Error (x, y)
-in
-
-f
-
+(3, 2, False)

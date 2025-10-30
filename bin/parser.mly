@@ -84,7 +84,7 @@ base_type:
   | LPAREN; ts = wtf(COMMA, base_type); RPAREN; a = VAR; { Ctor (ts, a) }
 
 iso_noctor_nogroup:
-  | LBRACE; omega = iso; RBRACE; { omega }
+  | LPAREN; omega = iso; RPAREN; { omega }
   | x = VAR; { Var x }
 
 iso_noctor:
@@ -131,7 +131,7 @@ param:
   | phi = VAR; { phi }
 
 iso_nogroup:
-  | LBRACE; omega = iso; RBRACE; { omega }
+  | LPAREN; omega = iso; RPAREN; { omega }
   | x = VAR; { Var x }
   | x = CTOR; { Ctor x }
 
