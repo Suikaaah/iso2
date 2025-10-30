@@ -25,8 +25,6 @@ rule read = parse
   | ")" { RPAREN }
   | "[" { LBRACKET }
   | "]" { RBRACKET }
-  | "{" { LBRACE }
-  | "}" { RBRACE }
   | "*" { TIMES }
   | "|" { PIPE }
   | "." { DOT }

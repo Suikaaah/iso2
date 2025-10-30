@@ -7,9 +7,9 @@ type nat = Z (* 0 *) | S (* n *) of nat
 (* -------- nat -------- *)
 
 iso rec is_even = case
-  | 0 <-> (0, True)
-  | 1 <-> (1, False)
-  | S (S x) <-> let (x, b) = is_even x in (S (S x), b)
+  | 0 <-> (True, 0)
+  | 1 <-> (False, 1)
+  | S (S x) <-> let (b, x) = is_even x in (b, S (S x))
 in
 
 (* add (x, y) = (x + y, y) *)
@@ -58,22 +58,8 @@ iso rec list_map f = case
 in
 
 iso rec len = case
-  | [] <-> ([], 0)
-  | x :: xs <-> let (xs, n) = len xs in (x :: xs, S n)
-in
-
-iso rec snoc' = case
-  | ([], x, 0) <-> ([x], x, 0)
-  | (h :: t, x, S n) <->
-      let (t, x, n) = snoc' (t, x, n) in
-      (h :: t, x, S n)
-in
-
-iso snoc = case (x, y) <->
-  let (x, n) = len x in
-  let (x, y, n) = snoc' (x, y, n) in
-  let z = invert len (x, S n) in
-  (z, y)
+  | [] <-> (0, [])
+  | x :: xs <-> let (n, xs) = len xs in (S n, x :: xs)
 in
 
 iso rec double = case
@@ -106,5 +92,14 @@ iso rec fold_left f = case
       (acc, x' :: xs)
 in
 
-fold_left (case (acc, x) <-> x :: acc) ([], [1; 2; 3; 4])
+iso rec repeat = case
+  | (x, 0) <-> (x, [])
+  | (x, S n) <->
+      let (x, xs) = repeat (x, n) in
+      (x, x :: xs)
+in
+
+let ok = fold_left (case (acc, x) <-> x :: acc) ([], [1; 2; 3; 4]) in
+
+option_map S (Some 3)
 

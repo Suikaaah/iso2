@@ -4,4 +4,25 @@ type ('a, 'e) result = Ok of 'a | Error of 'e
 type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat = Z (* 0 *) | S (* n *) of nat
 
-(3, 2, False)
+iso rec last = case
+  | (0, []) <-> (None, (0, []))
+  | (1, [x]) <-> (Some x, (1, [x]))
+  | (S (S n), x :: xs) <->
+      let (opt, (S n, xs)) = last (S n, xs) in
+      (opt, (S (S n), x :: xs))
+in
+
+iso rec len = case
+  | [] <-> (0, [])
+  | x :: xs <-> let (n, xs) = len xs in (S n, x :: xs)
+in
+
+iso cleanup f = case l <->
+  let p = len l in
+  let (x, p) = f p in
+  let l = invert len p in
+  (x, l)
+in
+
+cleanup last [3; 4; 5]
+

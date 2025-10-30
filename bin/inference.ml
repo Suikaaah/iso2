@@ -301,7 +301,8 @@ let rec generalize (e : equation list) (ctx : context) (p : Types.value)
   let extracted = extract_named gen p in
   let ctx = union ~weak:ctx ~strong:(StrMap.map (fun x -> Mono x) extracted) in
   let** { a = a'; e = e' } = infer_term (Types.term_of_value p) gen ctx in
-  let++ substs = unify [ (a', u) ] in
+  let es = (a', u) :: e' in
+  let++ substs = unify es in
   let generalized =
     StrMap.map
       (fun a ->
@@ -310,7 +311,7 @@ let rec generalize (e : equation list) (ctx : context) (p : Types.value)
       extracted
   in
 
-  (union ~weak:ctx ~strong:generalized, e')
+  (union ~weak:ctx ~strong:generalized, es)
 
 and infer_pair (gen : generator) (ctx : context)
     ((v, e) : Types.value * Types.expr) : inferred_pair myresult =

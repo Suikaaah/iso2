@@ -7,8 +7,6 @@
 %token RPAREN
 %token LBRACKET
 %token RBRACKET
-%token LBRACE
-%token RBRACE
 %token TIMES
 %token PIPE
 %token DOT
@@ -83,18 +81,6 @@ base_type:
   | LPAREN; t = base_type; RPAREN; { t }
   | LPAREN; ts = wtf(COMMA, base_type); RPAREN; a = VAR; { Ctor (ts, a) }
 
-iso_noctor_nogroup:
-  | LPAREN; omega = iso; RPAREN; { omega }
-  | x = VAR; { Var x }
-
-iso_noctor:
-  | INVERT; omega = iso_nogroup; { Invert omega }
-  | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
-  | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
-  | FUN; params = param+; ARROW; omega = iso; { lambdas_of_params params omega }
-  | omega_1 = iso_noctor; omega_2 = iso_nogroup; { App { omega_1; omega_2 } }
-  | omega = iso_noctor_nogroup; { omega }
-
 value_nogroup:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; v = value; RPAREN; { v }
@@ -115,6 +101,18 @@ value:
   (* weak r-associativity *)
   | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
   | v = value_nogroup; { v }
+
+iso_noctor_nogroup:
+  | LPAREN; omega = iso; RPAREN; { omega }
+  | x = VAR; { Var x }
+
+iso_noctor:
+  | INVERT; omega = iso_nogroup; { Invert omega }
+  | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
+  | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
+  | FUN; params = param+; ARROW; omega = iso; { lambdas_of_params params omega }
+  | omega_1 = iso_noctor; omega_2 = iso_nogroup; { App { omega_1; omega_2 } }
+  | omega = iso_noctor_nogroup; { omega }
 
 expr:
   | v = value; { Value v }
@@ -159,7 +157,8 @@ term_nogroup:
   | n = NAT; { nat_of_int n |> term_of_value }
 
 term:
-  | omega = iso; t = term_nogroup; { App { omega; t } }
+  | omega = iso_noctor; t = term_nogroup; { App { omega; t } }
+  | ctor = CTOR; t = term_nogroup; { App { omega = Ctor ctor; t } }
   | MATCH; t = term; WITH; PIPE?; p = separated_nonempty_list(PIPE, biarrowed);
     { App { omega = Pairs p; t } }
 
