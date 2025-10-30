@@ -70,16 +70,16 @@ iso rec double = case
 in
 
 iso rec rev = case
-  | ([], l, 0) <-> ([], l, 0)
-  | (x :: xs, l, S n) <->
-      let (xs, l, n) = rev (xs, x :: l, n) in
-      (xs, l, S n)
+  | (l, (0, [])) <-> (l, (0, []))
+  | (l, (S n, x :: xs)) <->
+      let (l, (n, xs)) = rev (x :: l, (n, xs)) in
+      (l, (S n, xs))
 in
 
 iso rev = case l <->
-  let (l, n) = len l in
-  let ([], l, n) = rev (l, [], n) in
-  let l = invert len (l, n) in
+  let p = len l in
+  let (l, (n, [])) = rev ([], p) in
+  let l = invert len (n, l) in
   l
 in
 
@@ -93,13 +93,13 @@ iso rec fold_left f = case
 in
 
 iso rec repeat = case
-  | (x, 0) <-> (x, [])
-  | (x, S n) <->
-      let (x, xs) = repeat (x, n) in
-      (x, x :: xs)
+  | (0, x) <-> ([], x)
+  | (S n, x) <->
+      let (xs, x) = repeat (n, x) in
+      (x :: xs, x)
 in
 
 let ok = fold_left (case (acc, x) <-> x :: acc) ([], [1; 2; 3; 4]) in
 
-option_map S (Some 3)
+rev [1; 2; 3]
 
