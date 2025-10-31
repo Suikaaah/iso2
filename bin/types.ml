@@ -104,9 +104,15 @@ let rec is_int_term : term -> bool = function
 let rec show_base_type : base_type -> string = function
   | Unit -> "unit"
   | Product l ->
-      show_listlike show_base_type ~left:"(" ~delim:" * " ~right:")" l
+      let lmao = function
+        | Product l ->
+            show_listlike show_base_type ~left:"(" ~delim:" * " ~right:")" l
+        | otherwise -> show_base_type otherwise
+      in
+      show_listlike lmao ~left:"" ~delim:" * " ~right:"" l
   | Named x | Var x -> x
   | Ctor ([], _) -> "unreachable (type constructor with Z arity)"
+  | Ctor ([ (Product _ as x) ], a) -> "(" ^ show_base_type x ^ ") " ^ a
   | Ctor ([ x ], a) -> show_base_type x ^ " " ^ a
   | Ctor (l, a) -> show_tuple show_base_type l ^ " " ^ a
 

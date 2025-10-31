@@ -12,6 +12,8 @@ iso rec is_even = case
   | S (S x) <-> let (b, x) = is_even x in (b, S (S x))
 in
 
+let asdf = is_even 2 in
+
 (* add (x, y) = (x + y, y) *)
 iso rec add = case
   | (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
@@ -99,7 +101,4 @@ iso rec repeat = case
       (x :: xs, x)
 in
 
-let ok = fold_left (case (acc, x) <-> x :: acc) ([], [1; 2; 3; 4]) in
-
-rev [1; 2; 3]
-
+asdf

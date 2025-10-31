@@ -5,24 +5,12 @@ type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat = Z (* 0 *) | S (* n *) of nat
 
 iso rec last = case
-  | (0, []) <-> (None, (0, []))
-  | (1, [x]) <-> (Some x, (1, [x]))
-  | (S (S n), x :: xs) <->
-      let (opt, (S n, xs)) = last (S n, xs) in
-      (opt, (S (S n), x :: xs))
+  | [] <-> (None, [])
+  | [x] <-> (Some x, [x])
+  | x :: y :: t <->
+      let (opt, y :: t) = last (y :: t) in
+      (opt, x :: y :: t)
 in
 
-iso rec len = case
-  | [] <-> (0, [])
-  | x :: xs <-> let (n, xs) = len xs in (S n, x :: xs)
-in
-
-iso cleanup f = case l <->
-  let p = len l in
-  let (x, p) = f p in
-  let l = invert len p in
-  (x, l)
-in
-
-cleanup last [3; 4; 5]
+[Ok None; Error None]
 
