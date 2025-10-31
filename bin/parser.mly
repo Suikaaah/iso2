@@ -39,7 +39,6 @@
 %type <value> value_nogroup
 %type <value> value
 %type <expr> expr
-%type <iso> iso_noctor_nogroup
 %type <iso> iso_noctor
 %type <iso> iso_nogroup
 %type <iso> iso
@@ -102,17 +101,14 @@ value:
   | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
   | v = value_nogroup; { v }
 
-iso_noctor_nogroup:
-  | LPAREN; omega = iso; RPAREN; { omega }
-  | x = VAR; { Var x }
-
 iso_noctor:
   | INVERT; omega = iso_nogroup; { Invert omega }
   | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
   | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
   | FUN; params = param+; ARROW; omega = iso; { lambdas_of_params params omega }
   | omega_1 = iso_noctor; omega_2 = iso_nogroup; { App { omega_1; omega_2 } }
-  | omega = iso_noctor_nogroup; { omega }
+  | LPAREN; omega = iso; RPAREN; { omega }
+  | x = VAR; { Var x }
 
 expr:
   | v = value; { Value v }
@@ -157,8 +153,7 @@ term_nogroup:
   | n = NAT; { nat_of_int n |> term_of_value }
 
 term:
-  | omega = iso_noctor; t = term_nogroup; { App { omega; t } }
-  | ctor = CTOR; t = term_nogroup; { App { omega = Ctor ctor; t } }
+  | omega = iso; t = term_nogroup; { App { omega; t } }
   | MATCH; t = term; WITH; PIPE?; p = separated_nonempty_list(PIPE, biarrowed);
     { App { omega = Pairs p; t } }
 
