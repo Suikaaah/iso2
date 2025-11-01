@@ -2,52 +2,20 @@
   open Types
 %}
 
-%token EOF
-%token LPAREN
-%token RPAREN
-%token LBRACKET
-%token RBRACKET
-%token TIMES
-%token PIPE
-%token DOT
-%token COMMA
-%token SEMICOLON
-%token CONS
-%token ARROW
-%token BIARROW
-%token EQUAL
-%token UNIT
-%token LET
-%token IN
-%token ISO
-%token FIX
-%token TYPE
-%token INVERT
-%token REC
-%token OF
-%token FUN
-%token CASE
-%token MATCH
-%token WITH
+%token EOF LPAREN RPAREN LBRACKET RBRACKET TIMES PIPE DOT COMMA SEMICOLON CONS
+       ARROW BIARROW EQUAL UNIT LET IN ISO FIX TYPE INVERT REC OF FUN CASE MATCH WITH
 %token <int> NAT
-%token <string> TVAR
-%token <string> VAR
-%token <string> CTOR
+%token <string> TVAR VAR CTOR
 
 %start <program> program
-%type <base_type> base_type
-%type <value> value_nogroup
-%type <value> value
-%type <expr> expr
-%type <iso> iso_noctor
-%type <iso> iso_nogroup
-%type <iso> iso
-%type <term> term_nogroup
-%type <term> term
-%type <variant> variant
 %type <typedef> typedef
+%type <base_type> base_type
+%type <variant> variant
+%type <value> value_grouped value
+%type <expr> expr
 %type <value * expr> biarrowed
-%type <string> param
+%type <iso> iso_noctor iso_grouped iso
+%type <term> term_grouped term
 %%
 
 wtf(separator, X):
@@ -67,10 +35,6 @@ typedef:
   | TYPE; LPAREN; vars = wtf(COMMA, TVAR); RPAREN; t = VAR; EQUAL; PIPE?; vs = separated_nonempty_list(PIPE, variant);
     { { vars; t; vs } }
 
-variant:
-  | c = CTOR; OF; a = base_type; { Iso { c; a } }
-  | c = CTOR; { Value c }
-
 base_type:
   | UNIT; { Unit }
   | ts = wtf(TIMES, base_type); { Product ts }
@@ -80,7 +44,11 @@ base_type:
   | LPAREN; t = base_type; RPAREN; { t }
   | LPAREN; ts = wtf(COMMA, base_type); RPAREN; a = VAR; { Ctor (ts, a) }
 
-value_nogroup:
+variant:
+  | c = CTOR; OF; a = base_type; { Iso { c; a } }
+  | c = CTOR; { Value c }
+
+value_grouped:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; v = value; RPAREN; { v }
   | LPAREN; vs = wtf(COMMA, value); RPAREN; { Tuple vs }
@@ -95,25 +63,14 @@ value_nogroup:
     }
 
 value:
-  | c = CTOR; v = value_nogroup; { Cted { c ; v } }
-
-  (* weak r-associativity *)
+  | c = CTOR; v = value_grouped; { Cted { c ; v } }
   | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
-  | v = value_nogroup; { v }
-
-iso_noctor:
-  | INVERT; omega = iso_nogroup; { Invert omega }
-  | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
-  | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
-  | FUN; params = param+; ARROW; omega = iso; { lambdas_of_params params omega }
-  | omega_1 = iso_noctor; omega_2 = iso_nogroup; { App { omega_1; omega_2 } }
-  | LPAREN; omega = iso; RPAREN; { omega }
-  | x = VAR; { Var x }
+  | v = value_grouped; { v }
 
 expr:
   | v = value; { Value v }
   | LET; p = value; EQUAL; v = value; IN; e = expr; { LetVal { p; v; e } }
-  | LET; p_1 = value; EQUAL; omega = iso_noctor; p_2 = value_nogroup; IN; e = expr; { Let { p_1; omega; p_2; e } }
+  | LET; p_1 = value; EQUAL; omega = iso_noctor; p_2 = value_grouped; IN; e = expr; { Let { p_1; omega; p_2; e } }
   | LET; p_1 = value; EQUAL; MATCH; p_2 = value; WITH;
     PIPE?; p = separated_nonempty_list(PIPE, biarrowed); IN; e = expr;
     { Let { p_1; omega = Pairs p; p_2; e } }
@@ -121,28 +78,35 @@ expr:
 biarrowed:
   | v = value; BIARROW; e = expr; { (v, e) }
 
-param:
-  | phi = VAR; { phi }
+iso_noctor:
+  | INVERT; omega = iso_grouped; { Invert omega }
+  | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
+  | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
+  | FUN; params = VAR+; ARROW; omega = iso; { lambdas_of_params params omega }
+  | omega_1 = iso_noctor; omega_2 = iso_grouped; { App { omega_1; omega_2 } }
+  | LPAREN; omega = iso; RPAREN; { omega }
+  | x = VAR; { Var x }
 
-iso_nogroup:
+iso_grouped:
   | LPAREN; omega = iso; RPAREN; { omega }
   | x = VAR; { Var x }
   | x = CTOR; { Ctor x }
 
 iso:
-  | INVERT; omega = iso_nogroup; { Invert omega }
+  | INVERT; omega = iso_grouped; { Invert omega }
   | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
   | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
-  | FUN; params = param+; ARROW; omega = iso; { lambdas_of_params params omega }
-  | omega_1 = iso; omega_2 = iso_nogroup; { App { omega_1; omega_2 } }
-  | omega = iso_nogroup; { omega }
+  | FUN; params = VAR+; ARROW; omega = iso; { lambdas_of_params params omega }
+  | omega_1 = iso; omega_2 = iso_grouped; { App { omega_1; omega_2 } }
+  | omega = iso_grouped; { omega }
 
-term_nogroup:
+term_grouped:
   | LPAREN; RPAREN; { Unit }
   | LPAREN; t = term; RPAREN; { t }
   | LPAREN; ts = wtf(COMMA, term); RPAREN; { Tuple ts }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
+  | n = NAT; { nat_of_int n |> term_of_value }
   | LBRACKET; RBRACKET; { Named "Nil" }
   | LBRACKET; ts = separated_nonempty_list(SEMICOLON, term); RBRACKET;
     {
@@ -150,23 +114,20 @@ term_nogroup:
       List.fold_right f ts (Named "Nil")
     }
 
-  | n = NAT; { nat_of_int n |> term_of_value }
-
 term:
-  | omega = iso; t = term_nogroup; { App { omega; t } }
+  | omega = iso; t = term_grouped; { App { omega; t } }
+  | t_1 = term; CONS; t_2 = term; { App { omega = Ctor "Cons"; t = Tuple [t_1; t_2] } }
+  | t = term_grouped; { t }
+  | LET; p = value; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
+  | ISO; phi = VAR; params = VAR*; EQUAL; omega = iso; IN; t = term;
+    { LetIso { phi; omega = lambdas_of_params params omega; t } }
+
   | MATCH; t = term; WITH; PIPE?; p = separated_nonempty_list(PIPE, biarrowed);
     { App { omega = Pairs p; t } }
 
-  | LET; p = value; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
-  | ISO; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
-    { LetIso { phi; omega = lambdas_of_params params omega; t } }
-
-  | ISO; REC; phi = VAR; params = param*; EQUAL; omega = iso; IN; t = term;
+  | ISO; REC; phi = VAR; params = VAR*; EQUAL; omega = iso; IN; t = term;
     {
       let omega = lambdas_of_params params omega in
       LetIso { phi; omega = Fix { phi; omega }; t }
     }
 
-  (* weak r-associativity *)
-  | t_1 = term; CONS; t_2 = term; { App { omega = Ctor "Cons"; t = Tuple [t_1; t_2] } }
-  | t = term_nogroup; { t }
