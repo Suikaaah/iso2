@@ -76,6 +76,7 @@ let show_list (f : 'a -> string) : 'a list -> string =
   show_listlike f ~left:"[" ~delim:"; " ~right:"]"
 
 let boldred (value : string) : string = "\x1b[1;31m" ^ value ^ "\x1b[0m"
+let green (value : string) : string = "\x1b[33m" ^ value ^ "\x1b[0m"
 
 let find_res (what : string) (map : 'a StrMap.t) : 'a myresult =
   StrMap.find_opt what map

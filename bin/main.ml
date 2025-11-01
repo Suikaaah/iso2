@@ -10,6 +10,9 @@ let to_syntax r = Result.map_error (fun e -> Syntax e) r
 let to_type r = Result.map_error (fun e -> Type e) r
 let to_runtime r = Result.map_error (fun e -> Runtime e) r
 
+let to_whatever r =
+  Result.map_error (fun _ -> Type "the program does not have base type") r
+
 let () =
   let res =
     let** { t; ts } = read_program Sys.argv.(1) |> to_syntax in
@@ -17,10 +20,10 @@ let () =
     let gen = { i = 0 } in
     let** ctx = build_ctx gen ts |> to_type in
     let** inferred = Result.bind (infer_term t gen ctx) finalize |> to_type in
-    (* let** base_type = base_of_any inferred in *)
+    let** _ = base_of_any inferred |> to_whatever in
     let++ evaluated = Eval.eval t |> to_runtime in
+    print_newline ();
     evaluated |> show_term |> print_endline;
-    (* "- : " ^ show_base_type base_type |> print_endline *)
     "- : " ^ show_any (tvar_map [ inferred ]) inferred |> print_endline
   in
   match res with

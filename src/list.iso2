@@ -62,4 +62,13 @@ iso rec repeat = case
       (x :: xs, x)
 in
 
+iso rec split = case
+  | [] <-> ([], [])
+  | (x, y) :: tl <->
+      let (xs, ys) = split tl in
+      (x :: xs, y :: ys)
+in
+
+iso merge = invert split in
+
 ()

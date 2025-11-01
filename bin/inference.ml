@@ -52,6 +52,7 @@ let rec invert_iso_type : any -> any myresult = function
       Arrow { a; b }
   (* is this needed? *)
   | Inverted a -> Ok a
+  | Var x -> Ok (Inverted (Var x))
   | otherwise -> Error (show_any [] otherwise ^ " is not an iso type")
 
 and base_of_any : any -> Types.base_type myresult = function
@@ -77,6 +78,7 @@ and iso_of_any : any -> Types.iso_type myresult = function
       let++ t_2 = iso_of_any b in
       Types.Arrow { t_1; t_2 }
   | Var x -> Ok (Types.Var ("'" ^ chars_of_int x))
+  | Inverted (Var x) -> Ok (Types.Var ("~'" ^ chars_of_int x))
   | Inverted a ->
       let** inv = invert_iso_type a in
       iso_of_any inv
@@ -89,16 +91,12 @@ and show_any (map : (int * int) list) (a : any) : string =
       (fun a (what, into) -> subst { what; into = Var into } a)
       a map
   in
-  match a with
-  | Inverted a -> "(" ^ show_any [] a ^ ")^-1"
-  | a -> begin
-      match base_of_any a with
-      | Ok a -> Types.show_base_type a
-      | Error _ -> begin
-          match iso_of_any a with
-          | Ok a -> Types.show_iso_type a
-          | Error _ -> "unreachable (neither base or iso)"
-        end
+  match base_of_any a with
+  | Ok a -> Types.show_base_type a
+  | Error _ -> begin
+      match iso_of_any a with
+      | Ok a -> Types.show_iso_type a
+      | Error _ -> "unreachable (neither base or iso)"
     end
 
 let show_elt : elt -> string = function
@@ -285,8 +283,14 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
 
 let generalize_iso (e : equation list) (ctx : context) (phi : string) (a : any)
     : context myresult =
-  let++ substs = unify e in
+  let** substs = unify e in
   let u = List.fold_left (fun a s -> subst s a) a substs in
+  let++ _ = iso_of_any u in
+  let name =
+    if 14 < String.length phi then String.sub phi 0 11 ^ "..."
+    else Printf.sprintf "%-14s" phi
+  in
+  name ^ " : " ^ show_any (tvar_map [ u ]) u |> green |> print_endline;
   let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
   let generalized = Scheme { forall = find_generalizable u ctx; a = u } in
   StrMap.add phi generalized ctx
@@ -295,6 +299,7 @@ let rec generalize (e : equation list) (ctx : context) (p : Types.value)
     (a : any) (gen : generator) : (context * equation list) myresult =
   let** substs = unify e in
   let u = List.fold_left (fun a s -> subst s a) a substs in
+  let** _ = base_of_any u in
   let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
   let forall = find_generalizable u ctx in
 
@@ -342,12 +347,21 @@ and infer_term (t : Types.term) (gen : generator) (ctx : context) :
       { a = fresh; e = (a_1, BiArrow { a = a_2; b = fresh }) :: e }
   | Let { p; t_1; t_2 } ->
       let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
-      let** ctx, es = generalize e_1 ctx p a_1 gen in
+      let** ctx, es =
+        generalize e_1 ctx p a_1 gen
+        |> Result.map_error (fun _ ->
+               "rhs of let " ^ Types.show_value p
+               ^ " = ... does not have base type")
+      in
       let++ { a = a_2; e = e_2 } = infer_term t_2 gen ctx in
       { a = a_2; e = e_1 @ es @ e_2 }
   | LetIso { phi; omega; t } ->
       let** { a = a_1; e = e_1 } = infer_iso omega gen ctx in
-      let** ctx = generalize_iso e_1 ctx phi a_1 in
+      let** ctx =
+        generalize_iso e_1 ctx phi a_1
+        |> Result.map_error (fun _ ->
+               "rhs of let " ^ phi ^ " = ... does not have iso type")
+      in
       let++ { a = a_2; e = e_2 } = infer_term t gen ctx in
       { a = a_2; e = e_1 @ e_2 }
 
@@ -358,12 +372,22 @@ and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
   | Let { p_1; omega; p_2; e = expr } ->
       let t_1 = Types.App { omega; t = Types.term_of_value p_2 } in
       let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
-      let** ctx, es = generalize e_1 ctx p_1 a_1 gen in
+      let** ctx, es =
+        generalize e_1 ctx p_1 a_1 gen
+        |> Result.map_error (fun _ ->
+               "rhs of let " ^ Types.show_value p_1
+               ^ " = ... does not have base type")
+      in
       let++ { a = a_2; e = e_2 } = infer_expr expr gen ctx in
       { a = a_2; e = e_1 @ es @ e_2 }
   | LetVal { p; v; e = expr } ->
       let** { a = a_1; e = e_1 } = infer_term (Types.term_of_value v) gen ctx in
-      let** ctx, es = generalize e_1 ctx p a_1 gen in
+      let** ctx, es =
+        generalize e_1 ctx p a_1 gen
+        |> Result.map_error (fun _ ->
+               "rhs of let " ^ Types.show_value p
+               ^ " = ... does not have base type")
+      in
       let++ { a = a_2; e = e_2 } = infer_expr expr gen ctx in
       { a = a_2; e = e_1 @ es @ e_2 }
 
@@ -455,7 +479,14 @@ let arity_map (defs : Types.typedef list) : int StrMap.t =
 
 let build_ctx (gen : generator) (defs : Types.typedef list) : context myresult =
   let arity_map = arity_map defs in
+  let occured = ref StrSet.empty in
+  let register t =
+    match StrSet.find_opt t !occured with
+    | None -> Ok (occured := StrSet.add t !occured)
+    | Some _ -> Error (t ^ " is defined more than once")
+  in
   let build Types.{ vars; t; vs } =
+    let** () = register t in
     let var_map =
       List.fold_left
         (fun acc x -> StrMap.add x (fresh gen) acc)
