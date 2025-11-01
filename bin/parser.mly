@@ -2,20 +2,20 @@
   open Types
 %}
 
-%token EOF LPAREN RPAREN LBRACKET RBRACKET TIMES PIPE DOT COMMA SEMICOLON CONS
+%token EOF LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET TIMES PIPE DOT COMMA SEMICOLON CONS
        ARROW BIARROW EQUAL UNIT LET IN ISO FIX TYPE INVERT REC OF FUN CASE MATCH WITH
 %token <int> NAT
 %token <string> TVAR VAR CTOR
 
 %start <program> program
 %type <typedef> typedef
-%type <base_type> base_type
+%type <base_type> base_type_grouped base_type
 %type <variant> variant
-%type <value> value_grouped value
+%type <value> value_grouped value_almost value
 %type <expr> expr
 %type <value * expr> biarrowed
 %type <iso> iso_noctor iso_grouped iso
-%type <term> term_grouped term
+%type <term> term_grouped term_almost term
 %%
 
 wtf(separator, X):
@@ -35,22 +35,25 @@ typedef:
   | TYPE; LPAREN; vars = wtf(COMMA, TVAR); RPAREN; t = VAR; EQUAL; PIPE?; vs = separated_nonempty_list(PIPE, variant);
     { { vars; t; vs } }
 
-base_type:
+base_type_grouped:
+  | LPAREN; t = base_type; RPAREN; { t }
   | UNIT; { Unit }
-  | ts = wtf(TIMES, base_type); { Product ts }
   | x = VAR; { Named x }
   | x = TVAR; { Var x }
-  | t = base_type; a = VAR; { Ctor ([t], a) }
-  | LPAREN; t = base_type; RPAREN; { t }
+  | t = base_type_grouped; a = VAR; { Ctor ([t], a) }
   | LPAREN; ts = wtf(COMMA, base_type); RPAREN; a = VAR; { Ctor (ts, a) }
+
+base_type:
+  | ts = wtf(TIMES, base_type_grouped); { Product ts }
+  | t = base_type_grouped; { t }
 
 variant:
   | c = CTOR; OF; a = base_type; { Iso { c; a } }
   | c = CTOR; { Value c }
 
 value_grouped:
-  | LPAREN; RPAREN; { Unit }
   | LPAREN; v = value; RPAREN; { v }
+  | LPAREN; RPAREN; { Unit }
   | LPAREN; vs = wtf(COMMA, value); RPAREN; { Tuple vs }
   | x = VAR; { Var x }
   | x = CTOR; { Ctor x }
@@ -62,10 +65,13 @@ value_grouped:
       List.fold_right f vs (Ctor "Nil")
     }
 
-value:
-  | c = CTOR; v = value_grouped; { Cted { c ; v } }
-  | v_1 = value; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
+value_almost:
   | v = value_grouped; { v }
+  | c = CTOR; v = value_grouped; { Cted { c ; v } }
+
+value:
+  | v = value_almost; { v }
+  | v_1 = value_almost; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
 
 expr:
   | v = value; { Value v }
@@ -84,25 +90,25 @@ iso_noctor:
   | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
   | FUN; params = VAR+; ARROW; omega = iso; { lambdas_of_params params omega }
   | omega_1 = iso_noctor; omega_2 = iso_grouped; { App { omega_1; omega_2 } }
-  | LPAREN; omega = iso; RPAREN; { omega }
+  | LBRACE; omega = iso; RBRACE; { omega }
   | x = VAR; { Var x }
 
 iso_grouped:
-  | LPAREN; omega = iso; RPAREN; { omega }
+  | LBRACE; omega = iso; RBRACE; { omega }
   | x = VAR; { Var x }
   | x = CTOR; { Ctor x }
 
 iso:
+  | omega = iso_grouped; { omega }
   | INVERT; omega = iso_grouped; { Invert omega }
   | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
   | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
   | FUN; params = VAR+; ARROW; omega = iso; { lambdas_of_params params omega }
   | omega_1 = iso; omega_2 = iso_grouped; { App { omega_1; omega_2 } }
-  | omega = iso_grouped; { omega }
 
 term_grouped:
-  | LPAREN; RPAREN; { Unit }
   | LPAREN; t = term; RPAREN; { t }
+  | LPAREN; RPAREN; { Unit }
   | LPAREN; ts = wtf(COMMA, term); RPAREN; { Tuple ts }
   | x = VAR; { Named x }
   | x = CTOR; { Named x }
@@ -114,10 +120,13 @@ term_grouped:
       List.fold_right f ts (Named "Nil")
     }
 
-term:
-  | omega = iso; t = term_grouped; { App { omega; t } }
-  | t_1 = term; CONS; t_2 = term; { App { omega = Ctor "Cons"; t = Tuple [t_1; t_2] } }
+term_almost:
   | t = term_grouped; { t }
+  | omega = iso; t = term_grouped; { App { omega; t } }
+
+term:
+  | t = term_almost; { t }
+  | t_1 = term_almost; CONS; t_2 = term; { App { omega = Ctor "Cons"; t = Tuple [t_1; t_2] } }
   | LET; p = value; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
   | ISO; phi = VAR; params = VAR*; EQUAL; omega = iso; IN; t = term;
     { LetIso { phi; omega = lambdas_of_params params omega; t } }

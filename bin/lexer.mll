@@ -23,6 +23,8 @@ rule read = parse
   | comment { read lexbuf }
   | "(" { LPAREN }
   | ")" { RPAREN }
+  | "{" { LBRACE }
+  | "}" { RBRACE }
   | "[" { LBRACKET }
   | "]" { RBRACKET }
   | "*" { TIMES }

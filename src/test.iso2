@@ -5,4 +5,27 @@ type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat = Z (* 0 *) | S (* n *) of nat
 type ord = Lt | Eq | Gt
 
-(5, None, 3)
+iso map f = case
+  | None   <-> None
+  | Some x <-> let y = f x in Some y
+in
+
+iso if then else = case
+  | (True, x) <-> let x = then x in (True, x)
+  | (False, x) <-> let x = else x in (False, x)
+in
+
+iso compose g f = case x <->
+  let x = f x in
+  let x = g x in x
+in
+
+iso swap = case (x, y) <-> (y, x) in
+
+(* add (x, y) = (x + y, y) *)
+iso rec add = case
+  | (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
+  | (m, 0) <-> (m, 0)
+in
+
+()
