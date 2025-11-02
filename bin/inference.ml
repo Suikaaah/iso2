@@ -85,7 +85,7 @@ and base_of_any : any -> Types.base_type myresult = function
       let++ l = List.map base_of_any l |> bind_all in
       let lmao : Types.base_type = Types.Ctor (l, x) in
       lmao
-  | _ -> Error "not a base type"
+  | _ -> Error "base type is expected"
 
 and iso_of_any : any -> Types.iso_type myresult = function
   | BiArrow { a; b } ->
@@ -101,7 +101,7 @@ and iso_of_any : any -> Types.iso_type myresult = function
   | Inverted a ->
       let** inv = invert_iso_type a in
       iso_of_any inv
-  | _ -> Error "not an iso type"
+  | _ -> Error "iso type is expected"
 
 (* todo: update *)
 and show_any (map : (int * int) list) (a : any) : string =
@@ -369,21 +369,12 @@ and infer_term (t : Types.term) (gen : generator) (ctx : context) :
       { a = fresh; e = (a_1, BiArrow { a = a_2; b = fresh }) :: e }
   | Let { p; t_1; t_2 } ->
       let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
-      let** ctx, es =
-        generalize e_1 ctx p a_1 gen
-        |> Result.map_error (fun _ ->
-               "rhs of let " ^ Types.show_value p
-               ^ " = ... does not have base type")
-      in
+      let** ctx, es = generalize e_1 ctx p a_1 gen in
       let++ { a = a_2; e = e_2 } = infer_term t_2 gen ctx in
       { a = a_2; e = e_1 @ es @ e_2 }
   | LetIso { phi; omega; t } ->
       let** { a = a_1; e = e_1 } = infer_iso omega gen ctx in
-      let** ctx =
-        generalize_iso e_1 ctx phi a_1
-        |> Result.map_error (fun _ ->
-               "rhs of let " ^ phi ^ " = ... does not have iso type")
-      in
+      let** ctx = generalize_iso e_1 ctx phi a_1 in
       let++ { a = a_2; e = e_2 } = infer_term t gen ctx in
       { a = a_2; e = e_1 @ e_2 }
 
@@ -394,22 +385,12 @@ and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
   | Let { p_1; omega; p_2; e = expr } ->
       let t_1 = Types.App { omega; t = Types.term_of_value p_2 } in
       let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
-      let** ctx, es =
-        generalize ~disabled:true e_1 ctx p_1 a_1 gen
-        |> Result.map_error (fun _ ->
-               "rhs of let " ^ Types.show_value p_1
-               ^ " = ... does not have base type")
-      in
+      let** ctx, es = generalize ~disabled:true e_1 ctx p_1 a_1 gen in
       let++ { a = a_2; e = e_2 } = infer_expr expr gen ctx in
       { a = a_2; e = e_1 @ es @ e_2 }
   | LetVal { p; v; e = expr } ->
       let** { a = a_1; e = e_1 } = infer_term (Types.term_of_value v) gen ctx in
-      let** ctx, es =
-        generalize ~disabled:true e_1 ctx p a_1 gen
-        |> Result.map_error (fun _ ->
-               "rhs of let " ^ Types.show_value p
-               ^ " = ... does not have base type")
-      in
+      let** ctx, es = generalize ~disabled:true e_1 ctx p a_1 gen in
       let++ { a = a_2; e = e_2 } = infer_expr expr gen ctx in
       { a = a_2; e = e_1 @ es @ e_2 }
 

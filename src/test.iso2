@@ -5,13 +5,4 @@ type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat = Z (* 0 *) | S (* n *) of nat
 type ord = Lt | Eq | Gt
 
-iso f = case x <->
-  let y = None in
-  (x, y, y)
-in
-
-let asdf = f 3 in
-
-let (x, y, z) = asdf in
-
-(x, y, z)
+()

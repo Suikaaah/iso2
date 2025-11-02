@@ -20,4 +20,11 @@ iso compose g f = case x <->
   let x = g x in x
 in
 
+iso rec wtf f g h = case x <->
+  let x = f g x in
+  let x = wtf h g f x in x
+in
+
+iso crazy = invert wtf {fun x -> S} in
+
 ()

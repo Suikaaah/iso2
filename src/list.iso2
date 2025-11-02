@@ -11,11 +11,11 @@ iso rec len = case
 in
 
 iso rec map f = case
+  | [] <-> []
   | h :: t <->
       let h = f h in
       let t = map f t in
       h :: t
-  | [] <-> []
 in
 
 iso rec last = case
@@ -33,26 +33,25 @@ iso rec double = case
       x :: x :: xs
 in
 
-iso rec rev = case
+iso rec rev' = case
   | (l, (0, [])) <-> (l, (0, []))
   | (l, (S n, x :: xs)) <->
-      let (l, (n, xs)) = rev (x :: l, (n, xs)) in
+      let (l, (n, xs)) = rev' (x :: l, (n, xs)) in
       (l, (S n, xs))
 in
 
 iso rev = case l <->
   let p = len l in
-  let (l, (n, [])) = rev ([], p) in
+  let (l, (n, [])) = rev' ([], p) in
   let l = invert len (n, l) in l
 in
 
-iso rec fold_left f = case
+iso rec foldl_map f = case
   | (acc, []) <-> (acc, [])
   | (acc, x :: xs) <->
-      let (x, x') = (x, x) in
-      let acc = f (acc, x) in
-      let (acc, xs) = fold_left f (acc, xs) in
-      (acc, x' :: xs)
+      let (acc, x) = f (acc, x) in
+      let (acc, xs) = foldl_map f (acc, xs) in
+      (acc, x :: xs)
 in
 
 iso rec repeat = case
@@ -71,4 +70,43 @@ in
 
 iso merge = invert split in
 
-merge ([1; 2; 3], [False; True; True])
+iso rec partition' = case
+  | (l, r, 0) <-> (l, r, 0)
+  | (l, x :: xs, S n) <->
+      let (l, xs, n) = partition' (x :: l, xs, n) in
+      (l, xs, S n)
+in
+
+iso partition = case (r, n) <->
+  let (l, r, n) = partition' ([], r, n) in
+  let l = invert len (n, l) in
+  let l = rev l in
+  (l, r)
+in
+
+iso concat = invert partition in
+
+(* add (x, y) = (x + y, y) *)
+iso rec add = case
+  | (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
+  | (m, 0) <-> (m, 0)
+in
+
+iso rec sum = case l <->
+  let x = foldl_map add (0, l) in x
+in
+
+iso rec iota' = case
+  | 0 <-> []
+  | S n <->
+      let (n, n') = (n, n) in
+      let xs = iota' n in
+      n' :: xs
+in
+
+iso iota = case n <->
+  let l = iota' n in
+  let l = rev l in l
+in
+
+iota 8
