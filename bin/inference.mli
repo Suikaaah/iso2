@@ -13,6 +13,7 @@ val fresh : generator -> int
 val subst : subst -> any -> any
 val tvar_map : any list -> (int * int) list
 val invert_iso_type : any -> any myresult
+val normalize_inv : any -> any myresult
 val base_of_any : any -> Types.base_type myresult
 val iso_of_any : any -> Types.iso_type myresult
 val show_any : (int * int) list -> any -> string
@@ -38,6 +39,7 @@ val generalize_iso :
   equation list -> context -> string -> any -> context myresult
 
 val generalize :
+  ?disabled:bool ->
   equation list ->
   context ->
   Types.value ->

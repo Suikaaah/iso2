@@ -5,21 +5,13 @@ type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat = Z (* 0 *) | S (* n *) of nat
 type ord = Lt | Eq | Gt
 
-iso map f = case
-  | None   <-> None
-  | Some x <-> let y = f x in Some y
+iso f = case x <->
+  let y = None in
+  (x, y, y)
 in
 
-iso if then else = case
-  | (True, x) <-> let x = then x in (True, x)
-  | (False, x) <-> let x = else x in (False, x)
-in
+let asdf = f 3 in
 
-iso compose g f = case x <->
-  let x = f x in
-  let x = g x in x
-in
+let (x, y, z) = asdf in
 
-iso swap = case (x, y) <-> (y, x) in
-
-()
+(x, y, z)

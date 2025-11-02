@@ -71,4 +71,4 @@ in
 
 iso merge = invert split in
 
-()
+merge ([1; 2; 3], [False; True; True])

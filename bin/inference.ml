@@ -33,16 +33,25 @@ let rec subst (s : subst) : any -> any = function
   | otherwise -> otherwise
 
 let tvar_map (a : any list) : (int * int) list =
+  let module IntMap = Map.Make (Int) in
+  let map = ref IntMap.empty in
+  let gen = { i = 0 } in
+  let get x =
+    match IntMap.find_opt x !map with
+    | Some _ -> ()
+    | None -> map := IntMap.add x (fresh gen) !map
+  in
   let rec collect = function
-    | Unit | Named _ -> []
-    | Product l | Ctor (l, _) -> List.map collect l |> List.flatten
-    | BiArrow { a; b } | Arrow { a; b } -> collect a @ collect b
-    | Var i -> [ i ]
+    | Unit | Named _ -> ()
+    | Product l | Ctor (l, _) -> List.iter collect l
+    | BiArrow { a; b } | Arrow { a; b } ->
+        collect a;
+        collect b
+    | Var i -> get i
     | Inverted a -> collect a
   in
-  let gen = { i = 0 } in
-  List.map collect a |> List.flatten |> List.sort_uniq compare
-  |> List.map (fun i -> (i, fresh gen))
+  List.iter collect a;
+  IntMap.to_list !map
 
 let rec invert_iso_type : any -> any myresult = function
   | BiArrow { a; b } -> Ok (BiArrow { a = b; b = a })
@@ -53,6 +62,16 @@ let rec invert_iso_type : any -> any myresult = function
   (* is this needed? *)
   | Inverted a -> Ok a
   | Var x -> Ok (Inverted (Var x))
+  | otherwise -> Error (show_any [] otherwise ^ " is not an iso type")
+
+and normalize_inv : any -> any myresult = function
+  | BiArrow { a; b } -> Ok (BiArrow { a; b })
+  | Arrow { a; b } ->
+      let** a = normalize_inv a in
+      let++ b = normalize_inv b in
+      Arrow { a; b }
+  | Inverted a -> invert_iso_type a
+  | Var x -> Ok (Var x)
   | otherwise -> Error (show_any [] otherwise ^ " is not an iso type")
 
 and base_of_any : any -> Types.base_type myresult = function
@@ -285,18 +304,21 @@ let generalize_iso (e : equation list) (ctx : context) (phi : string) (a : any)
     : context myresult =
   let** substs = unify e in
   let u = List.fold_left (fun a s -> subst s a) a substs in
-  let++ _ = iso_of_any u in
+  let** _ = iso_of_any u in
+  let++ u_show = normalize_inv u in
   let name =
-    if 14 < String.length phi then String.sub phi 0 11 ^ "..."
-    else Printf.sprintf "%-14s" phi
+    if 12 < String.length phi then String.sub phi 0 9 ^ "..."
+    else Printf.sprintf "%-12s" phi
   in
-  name ^ " : " ^ show_any (tvar_map [ u ]) u |> green |> print_endline;
+  "| " ^ name ^ " : " ^ show_any (tvar_map [ u_show ]) u_show
+  |> green |> print_endline;
   let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
   let generalized = Scheme { forall = find_generalizable u ctx; a = u } in
   StrMap.add phi generalized ctx
 
-let rec generalize (e : equation list) (ctx : context) (p : Types.value)
-    (a : any) (gen : generator) : (context * equation list) myresult =
+let rec generalize ?(disabled = false) (e : equation list) (ctx : context)
+    (p : Types.value) (a : any) (gen : generator) :
+    (context * equation list) myresult =
   let** substs = unify e in
   let u = List.fold_left (fun a s -> subst s a) a substs in
   let** _ = base_of_any u in
@@ -312,7 +334,7 @@ let rec generalize (e : equation list) (ctx : context) (p : Types.value)
     StrMap.map
       (fun a ->
         let a = List.fold_left (fun a s -> subst s a) a substs in
-        Scheme { forall; a })
+        if disabled then Mono a else Scheme { forall; a })
       extracted
   in
 
@@ -373,7 +395,7 @@ and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
       let t_1 = Types.App { omega; t = Types.term_of_value p_2 } in
       let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
       let** ctx, es =
-        generalize e_1 ctx p_1 a_1 gen
+        generalize ~disabled:true e_1 ctx p_1 a_1 gen
         |> Result.map_error (fun _ ->
                "rhs of let " ^ Types.show_value p_1
                ^ " = ... does not have base type")
@@ -383,7 +405,7 @@ and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
   | LetVal { p; v; e = expr } ->
       let** { a = a_1; e = e_1 } = infer_term (Types.term_of_value v) gen ctx in
       let** ctx, es =
-        generalize e_1 ctx p a_1 gen
+        generalize ~disabled:true e_1 ctx p a_1 gen
         |> Result.map_error (fun _ ->
                "rhs of let " ^ Types.show_value p
                ^ " = ... does not have base type")

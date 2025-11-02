@@ -1,0 +1,23 @@
+type bool = False | True
+type 'a option = None | Some of 'a
+type ('a, 'e) result = Ok of 'a | Error of 'e
+type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
+type nat = Z (* 0 *) | S (* n *) of nat
+type ord = Lt | Eq | Gt
+
+iso map f = case
+  | None   <-> None
+  | Some x <-> let y = f x in Some y
+in
+
+iso if then else = case
+  | (True, x) <-> let x = then x in (True, x)
+  | (False, x) <-> let x = else x in (False, x)
+in
+
+iso compose g f = case x <->
+  let x = f x in
+  let x = g x in x
+in
+
+()
