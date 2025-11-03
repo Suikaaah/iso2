@@ -1,8 +1,52 @@
-type bool = False | True
-type 'a option = None | Some of 'a
-type ('a, 'e) result = Ok of 'a | Error of 'e
-type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
-type nat = Z (* 0 *) | S (* n *) of nat
-type ord = Lt | Eq | Gt
+type bool            = False | True
+type 'a option       = None | Some of 'a
+type ('l, 'r) either = Left of 'l | Right of 'r
+type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
+type nat             = Z (* 0 *) | S (* n *) of nat
+type ord             = Lt | Eq | Gt
 
-()
+type value = A | B | C | D | E | F
+type fn    = Fn of (value * expr) list
+type expr  = Value of value | Let of value * fn * value * expr
+
+iso rec map f = case
+  | [] <-> []
+  | h :: t <->
+      let h = f h in
+      let t = map f t in
+      h :: t
+in
+
+iso rec len_expr = case
+  | Value v <-> (0, Value v)
+  | Let (v1, f, v2, e) <->
+      let (len, e) = len_expr e in
+      (S len, Let (v1, f, v2, e))
+in
+
+iso rec inv_expr inv_fn = case
+  | (acc, Value v, 0) <-> (acc, Value v, 0)
+  | (acc, Let (v1, f, v2, e), S n) <->
+      let f = inv_fn f in
+      let acc = Let (v2, f, v1, acc) in
+      let (acc, e, n) = inv_expr inv_fn (acc, e, n) in
+      (acc, e, S n)
+in
+
+iso inv_pair inv_fn = case (v, e) <->
+  let (n, e) = len_expr e in
+  let (e, Value v, n) = inv_expr inv_fn (Value v, e, n) in
+  let e = inv len_expr (n, e) in
+  (v, e)
+in
+
+iso rec inv_fn = case Fn ps <->
+  let ps = map {inv_pair inv_fn} ps in Fn ps
+in
+
+let e0 = Let (A, Fn [], B, 
+           Let (C, Fn [], D,
+             Value E)) in
+
+e0
+

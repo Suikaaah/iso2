@@ -186,8 +186,8 @@ and show_iso : iso -> string = function
   | App { omega_1; omega_2 = (Ctor _ | Var _) as omega_2 } ->
       show_iso omega_1 ^ " " ^ show_iso omega_2
   | App { omega_1; omega_2 } -> show_iso omega_1 ^ " {" ^ show_iso omega_2 ^ "}"
-  | Invert ((Ctor _ | Var _) as omega) -> "invert " ^ show_iso omega
-  | Invert omega -> "invert {" ^ show_iso omega ^ "}"
+  | Invert ((Ctor _ | Var _) as omega) -> "inv " ^ show_iso omega
+  | Invert omega -> "inv {" ^ show_iso omega ^ "}"
 
 let show_pairs_lhs (v : value) (pairs : (value * expr) list) : string =
   let init = "match " ^ show_value v ^ " with" in

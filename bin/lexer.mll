@@ -42,7 +42,7 @@ rule read = parse
   | "iso" { ISO }
   | "fix" { FIX }
   | "type" { TYPE }
-  | "invert" { INVERT }
+  | "inv" { INVERT }
   | "rec" { REC }
   | "of" { OF }
   | "fun" { FUN }

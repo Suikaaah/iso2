@@ -1,9 +1,9 @@
-type bool = False | True
-type 'a option = None | Some of 'a
-type ('a, 'e) result = Ok of 'a | Error of 'e
-type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
-type nat = Z (* 0 *) | S (* n *) of nat
-type ord = Lt | Eq | Gt
+type bool            = False | True
+type 'a option       = None | Some of 'a
+type ('l, 'r) either = Left of 'l | Right of 'r
+type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
+type nat             = Z (* 0 *) | S (* n *) of nat
+type ord             = Lt | Eq | Gt
 
 iso rec len = case
   | [] <-> (0, [])
@@ -43,7 +43,7 @@ in
 iso rev = case l <->
   let p = len l in
   let (l, (n, [])) = rev' ([], p) in
-  let l = invert len (n, l) in l
+  let l = inv len (n, l) in l
 in
 
 iso rec foldl_map f = case
@@ -68,7 +68,7 @@ iso rec split = case
       (x :: xs, y :: ys)
 in
 
-iso merge = invert split in
+iso merge = inv split in
 
 iso rec partition' = case
   | (l, r, 0) <-> (l, r, 0)
@@ -79,12 +79,12 @@ in
 
 iso partition = case (r, n) <->
   let (l, r, n) = partition' ([], r, n) in
-  let l = invert len (n, l) in
+  let l = inv len (n, l) in
   let l = rev l in
   (l, r)
 in
 
-iso concat = invert partition in
+iso concat = inv partition in
 
 (* add (x, y) = (x + y, y) *)
 iso rec add = case

@@ -1,9 +1,9 @@
-type bool = False | True
-type 'a option = None | Some of 'a
-type ('a, 'e) result = Ok of 'a | Error of 'e
-type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
-type nat = Z (* 0 *) | S (* n *) of nat
-type ord = Lt | Eq | Gt
+type bool            = False | True
+type 'a option       = None | Some of 'a
+type ('l, 'r) either = Left of 'l | Right of 'r
+type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
+type nat             = Z (* 0 *) | S (* n *) of nat
+type ord             = Lt | Eq | Gt
 
 iso rec is_even = case
   | 0 <-> (True, 0)
