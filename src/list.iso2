@@ -109,4 +109,6 @@ iso iota = case n <->
   let l = rev l in l
 in
 
-iota 8
+let (Some n, Right None) = (Some 3, Right None) in
+
+iota n

@@ -1,52 +1,87 @@
-type bool            = False | True
-type 'a option       = None | Some of 'a
-type ('l, 'r) either = Left of 'l | Right of 'r
-type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
-type nat             = Z (* 0 *) | S (* n *) of nat
-type ord             = Lt | Eq | Gt
+type bool    = False | True
+type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
+type nat     = Z (* 0 *) | S (* n *) of nat
+type q       = Q0 | Q1 | Q2 | Q3 | Q4 | Q5 | Q6 | Q7
+type s       = B | S0 | S1 | S2 | S3 | S4 | S5 | S6 | S7
 
-type value = A | B | C | D | E | F
-type fn    = Fn of (value * expr) list
-type expr  = Value of value | Let of value * fn * value * expr
-
-iso rec map f = case
-  | [] <-> []
-  | h :: t <->
-      let h = f h in
-      let t = map f t in
-      h :: t
+iso rec len = case
+| [] <-> ([], 0)
+| h :: t <->
+  let (t, n) = len t in
+  (h :: t, S n)
 in
 
-iso rec len_expr = case
-  | Value v <-> (0, Value v)
-  | Let (v1, f, v2, e) <->
-      let (len, e) = len_expr e in
-      (S len, Let (v1, f, v2, e))
+iso rec snoc' = case
+| ([], x, 0) <->
+  let (x1, x2) = (x, x) in
+  ([x1], x2, 0)
+| (h :: t, x, S n) <->
+  let (t, x, n) = snoc' (t, x, n) in
+  (h :: t, x, S n)
 in
 
-iso rec inv_expr inv_fn = case
-  | (acc, Value v, 0) <-> (acc, Value v, 0)
-  | (acc, Let (v1, f, v2, e), S n) <->
-      let f = inv_fn f in
-      let acc = Let (v2, f, v1, acc) in
-      let (acc, e, n) = inv_expr inv_fn (acc, e, n) in
-      (acc, e, S n)
+iso snoc = case (x, y) <->
+  let (x, n) = len x in
+  let (x, y, n) = snoc' (x, y, n) in
+  let z = inv len (x, S n) in
+  (z, y)
 in
 
-iso inv_pair inv_fn = case (v, e) <->
-  let (n, e) = len_expr e in
-  let (e, Value v, n) = inv_expr inv_fn (Value v, e, n) in
-  let e = inv len_expr (n, e) in
-  (v, e)
+iso growth = case (l, r) <->
+  let (l, B) = snoc (l, B) in
+  let (r, B) = snoc (r, B) in
+  (l, r)
 in
 
-iso rec inv_fn = case Fn ps <->
-  let ps = map {inv_pair inv_fn} ps in Fn ps
+iso rec it phi = case x <->
+  let y = phi x in
+  let z = match y with
+    | (y, True)  <-> let (y, n) = it phi y in (y, S n)
+    | (y, False) <-> (y, 0)
+  in z
 in
 
-let e0 = Let (A, Fn [], B, 
-           Let (C, Fn [], D,
-             Value E)) in
+iso rec rm_blank = case
+| []      <-> ([], 0)
+| B :: t  <-> let (t, n) = rm_blank t in (t, S n)
+| S0 :: t <-> (S0 :: t, 0)
+| S1 :: t <-> (S1 :: t, 0)
+| S2 :: t <-> (S2 :: t, 0)
+| S3 :: t <-> (S3 :: t, 0)
+| S4 :: t <-> (S4 :: t, 0)
+| S5 :: t <-> (S5 :: t, 0)
+| S6 :: t <-> (S6 :: t, 0)
+| S7 :: t <-> (S7 :: t, 0)
+in
 
-e0
+iso rec rev_aux = case
+| ([], y) <-> ([], y)
+| (h :: t, y) <->
+  let (h1, h2) = (h, h) in
+  let (t1, t2) = rev_aux (t, h2 :: y) in
+  (h1 :: t1, t2)
+in
 
+iso rev = case x <->
+  let (t1, t2) = rev_aux (x, []) in
+  (t1, t2)
+in
+
+iso clean_up = case ((x, (l, y, r)), n) <->
+  let (l, n1) = rm_blank l in
+  let (r_ori, r_rev) = rev r in
+  let (r, n2) = rm_blank r_rev in
+  ((x, (l, y, r)), n, n1, n2, r_ori)
+in
+
+iso garbrem f g = case x <->
+  let (x, y) = f x in
+  let (x, z) = (x, x) in
+  let x = inv f (x, y) in
+  let (z, y) = g z in
+  let (z, z) = (z, x) in
+  let z = inv g (z, y) in
+  z
+in
+
+()

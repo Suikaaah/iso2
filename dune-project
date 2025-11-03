@@ -19,7 +19,7 @@
  (name iso2)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml menhir)
+ (depends ocaml ocamllex menhir)
  (tags
   ("add topics" "to describe" your project)))
 

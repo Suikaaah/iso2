@@ -5,5 +5,5 @@
 
 (executable
  (public_name iso2)
- (name main)
+ (name iso2)
  (libraries iso2))
