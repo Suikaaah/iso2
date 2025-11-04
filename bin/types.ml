@@ -105,8 +105,7 @@ let rec show_base_type : base_type -> string = function
   | Unit -> "unit"
   | Product l ->
       let lmao = function
-        | Product l ->
-            show_listlike show_base_type ~left:"(" ~delim:" * " ~right:")" l
+        | Product l -> "(" ^ show_base_type (Product l) ^ ")"
         | otherwise -> show_base_type otherwise
       in
       show_listlike lmao ~left:"" ~delim:" * " ~right:"" l
