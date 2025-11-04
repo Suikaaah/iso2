@@ -3,41 +3,40 @@ type 'a option       = None | Some of 'a
 type ('l, 'r) either = Left of 'l | Right of 'r
 type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat             = Z (* 0 *) | S (* n *) of nat
-type ord             = Lt | Eq | Gt
 
 iso rec len = case
-  | [] <-> (0, [])
-  | x :: xs <-> let (n, xs) = len xs in (S n, x :: xs)
+| []      <-> (0, [])
+| x :: xs <-> let (n, xs) = len xs in (S n, x :: xs)
 in
 
 iso rec map f = case
-  | [] <-> []
-  | h :: t <->
-      let h = f h in
-      let t = map f t in
-      h :: t
+| []     <-> []
+| h :: t <->
+  let h = f h in
+  let t = map f t in
+  h :: t
 in
 
 iso rec last = case
-  | [] <-> (None, [])
-  | [x] <-> (Some x, [x])
-  | x :: y :: t <->
-      let (opt, y :: t) = last (y :: t) in
-      (opt, x :: y :: t)
+| []          <-> (None, [])
+| [x]         <-> (Some x, [x])
+| x :: y :: t <->
+  let (opt, y :: t) = last (y :: t) in
+  (opt, x :: y :: t)
 in
 
 iso rec double = case
-  | [] <-> []
-  | x :: xs <->
-      let xs = double xs in
-      x :: x :: xs
+| []      <-> []
+| x :: xs <->
+  let xs = double xs in
+  x :: x :: xs
 in
 
 iso rec rev' = case
-  | (l, (0, [])) <-> (l, (0, []))
-  | (l, (S n, x :: xs)) <->
-      let (l, (n, xs)) = rev' (x :: l, (n, xs)) in
-      (l, (S n, xs))
+| (l, (0, []))        <-> (l, (0, []))
+| (l, (S n, x :: xs)) <->
+  let (l, (n, xs)) = rev' (x :: l, (n, xs)) in
+  (l, (S n, xs))
 in
 
 iso rev = case l <->
@@ -47,49 +46,48 @@ iso rev = case l <->
 in
 
 iso rec foldl_map f = case
-  | (acc, []) <-> (acc, [])
-  | (acc, x :: xs) <->
-      let (acc, x) = f (acc, x) in
-      let (acc, xs) = foldl_map f (acc, xs) in
-      (acc, x :: xs)
+| (acc, [])      <-> (acc, [])
+| (acc, x :: xs) <->
+  let (acc, x) = f (acc, x) in
+  let (acc, xs) = foldl_map f (acc, xs) in
+  (acc, x :: xs)
 in
 
 iso rec repeat = case
-  | (0, x) <-> ([], x)
-  | (S n, x) <->
-      let (xs, x) = repeat (n, x) in
-      (x :: xs, x)
+| (0, x)   <-> ([], x)
+| (S n, x) <->
+  let (xs, x) = repeat (n, x) in
+  (x :: xs, x)
 in
 
 iso rec split = case
-  | [] <-> ([], [])
-  | (x, y) :: tl <->
-      let (xs, ys) = split tl in
-      (x :: xs, y :: ys)
+| []           <-> ([], [])
+| (x, y) :: tl <->
+  let (xs, ys) = split tl in
+  (x :: xs, y :: ys)
 in
 
 iso merge = inv split in
 
 iso rec partition' = case
-  | (l, r, 0) <-> (l, r, 0)
-  | (l, x :: xs, S n) <->
-      let (l, xs, n) = partition' (x :: l, xs, n) in
-      (l, xs, S n)
+| (l, r, 0)         <-> (l, r, 0)
+| (l, x :: xs, S n) <->
+  let (l, xs, n) = partition' (x :: l, xs, n) in
+  (l, xs, S n)
 in
 
 iso partition = case (r, n) <->
   let (l, r, n) = partition' ([], r, n) in
   let l = inv len (n, l) in
-  let l = rev l in
-  (l, r)
+  let l = rev l in (l, r)
 in
 
 iso concat = inv partition in
 
 (* add (x, y) = (x + y, y) *)
 iso rec add = case
-  | (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
-  | (m, 0) <-> (m, 0)
+| (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
+| (m, 0)   <-> (m, 0)
 in
 
 iso rec sum = case l <->
@@ -97,11 +95,11 @@ iso rec sum = case l <->
 in
 
 iso rec iota' = case
-  | 0 <-> []
-  | S n <->
-      let (n, n') = (n, n) in
-      let xs = iota' n in
-      n' :: xs
+| 0   <-> []
+| S n <->
+  let (n, n') = (n, n) in
+  let xs = iota' n in
+  n' :: xs
 in
 
 iso iota = case n <->
@@ -110,3 +108,4 @@ iso iota = case n <->
 in
 
 iota 8
+

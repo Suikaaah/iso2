@@ -1,8 +1,10 @@
-type bool    = False | True
-type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
-type nat     = Z (* 0 *) | S (* n *) of nat
-type q       = Init | Next | Flip | Done | Back | Final
-type s       = B | S0 | S1 | S2 | S3 | S4 | S5 | S6 | S7
+type bool            = False | True
+type 'a option       = None | Some of 'a
+type ('l, 'r) either = Left of 'l | Right of 'r
+type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
+type nat             = Z (* 0 *) | S (* n *) of nat
+type q               = Init | Next | Flip | Done | Back | Final
+type s               = B | S0 | S1 | S2 | S3 | S4 | S5 | S6 | S7
 
 iso compose g f = case x <->
   let x = f x in
@@ -17,9 +19,7 @@ iso rec len = case
 in
 
 iso rec snoc' = case
-| ([], x, 0) <->
-  let (x1, x2) = (x, x) in
-  ([x1], x2, 0)
+| ([], x, 0) <-> ([x], x, 0)
 | (h :: t, x, S n) <->
   let (t, x, n) = snoc' (t, x, n) in
   (h :: t, x, S n)
@@ -32,18 +32,114 @@ iso snoc = case (x, y) <->
   (z, y)
 in
 
+iso rec rev' = case
+| ([], y) <-> ([], y)
+| (h :: t, y) <->
+  let (h1, h2) = (h, h) in
+  let (t1, t2) = rev' (t, h2 :: y) in
+  (h1 :: t1, t2)
+in
+
+iso rev = case x <-> let x = rev' (x, []) in x in
+
 iso growth = case (l, r) <->
   let (l, B) = snoc (l, B) in
   let (r, B) = snoc (r, B) in
   (l, r)
 in
 
-iso rec it phi = case x <->
-  let y = phi x in
-  let z = match y with
-    | (y, False)  <-> let (y, n) = it phi y in (y, S n)
-    | (y, True) <-> (y, 0)
-  in z
+iso delta = case
+(* (Init, (B, B), Next) *)
+| (Init, (x', B, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Next, (l, B, r)), False)
+
+(* (Next, ->, Flip) *)
+| (Next, (x', z, y :: y')) <->
+  let (l, r) = growth (x', y') in
+  ((Flip, (z :: l, y, r)), False)
+
+(* (Flip, (S0, S1), Next) *)
+| (Flip, (x', S0, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Next, (l, S1, r)), False)
+
+(* (Flip, (S1, S0), Next) *)
+| (Flip, (x', S1, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Next, (l, S0, r)), False)
+
+(* (Flip, (S2, S2), Back) *)
+| (Flip, (x', S2, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Back, (l, S2, r)), False)
+
+(* (Back, <-, Done) *)
+| (Back, (x :: x', z, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Done, (l, x, z :: r)), False)
+
+(* (Done, (S0, S0), Back) *)
+| (Done, (x', S0, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Back, (l, S0, r)), False)
+
+(* (Done, (S1, S1), Back) *)
+| (Done, (x', S1, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Back, (l, S1, r)), False)
+
+(* (Done, (B, B), Final) *)
+| (Done, (x', B, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Final, (l, B, r)), True)
+in
+
+iso delta_inv = case
+(* (Next, (B, B), Init) *)
+| (Next, (x', B, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Init, (l, B, r)), True)
+
+(* (Flip, <-, Next) *)
+| (Flip, (x :: x', z, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Next, (l, x, z :: r)), False)
+
+(* (Next, (S1, S0), Flip) *)
+| (Next, (x', S1, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Flip, (l, S0, r)), False)
+
+(* (Next, (S0, S1), Flip) *)
+| (Next, (x', S0, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Flip, (l, S1, r)), False)
+
+(* (Back, (S2, S2), Flip) *)
+| (Back, (x', S2, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Flip, (l, S2, r)), False)
+
+(* (Done, ->, Back) *)
+| (Done, (x', z, y :: y')) <->
+  let (l, r) = growth (x', y') in
+  ((Back, (z :: l, y, r)), False)
+
+(* (Back, (S0, S0), Done) *)
+| (Back, (x', S0, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Done, (l, S0, r)), False)
+
+(* (Back, (S1, S1), Done) *)
+| (Back, (x', S1, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Done, (l, S1, r)), False)
+
+(* (Final, (B, B), Done) *)
+| (Final, (x', B, y')) <->
+  let (l, r) = growth (x', y') in
+  ((Done, (l, B, r)), False)
 in
 
 iso rec rm_blank = case
@@ -59,21 +155,19 @@ iso rec rm_blank = case
 | S7 :: t <-> (S7 :: t, 0)
 in
 
-iso rec rev' = case
-| ([], y) <-> ([], y)
-| (h :: t, y) <->
-  let (h1, h2) = (h, h) in
-  let (t1, t2) = rev' (t, h2 :: y) in
-  (h1 :: t1, t2)
-in
-
-iso rev = case x <-> let x = rev' (x, []) in x in
-
 iso clean_up = case ((x, (l, y, r)), n) <->
   let (l, n1) = rm_blank l in
   let (r_ori, r_rev) = rev r in
   let (r, n2) = rm_blank r_rev in
-  ((x, (l, y, r)), n, n1, n2, r_ori)
+  ((x, (l, y, r)), (n, n1, n2, r_ori))
+in
+
+iso rec it f = case x <->
+  let y = f x in
+  let z = match y with
+    | (y, False) <-> let (y, n) = it f y in (y, S n)
+    | (y, True)  <-> (y, 0)
+  in z
 in
 
 iso garbrem f g = case x <->
@@ -86,80 +180,10 @@ iso garbrem f g = case x <->
   z
 in
 
-iso delta = case
-(* (Init, (B, B), Next) *)
-| (Init, (x', B, y')) <->
-  let (l, r) = growth (x', y') in
-  (Next, (l, B, r))
-
-(* (Next, ->, Flip) *)
-| (Next, (x', z, y :: y')) <->
-  let (l, r) = growth (x', y') in
-  (Flip, (z :: l, y, r))
-
-(* (Flip, (S0, S1), Next) *)
-| (Flip, (x', S0, y')) <->
-  let (l, r) = growth (x', y') in
-  (Next, (l, S1, r))
-
-(* (Flip, (S1, S0), Next) *)
-| (Flip, (x', S1, y')) <->
-  let (l, r) = growth (x', y') in
-  (Next, (l, S0, r))
-
-(* (Flip, (S2, S2), Back) *)
-| (Flip, (x', S2, y')) <->
-  let (l, r) = growth (x', y') in
-  (Back, (l, S2, r))
-
-(* (Back, <-, Done) *)
-| (Back, (x :: x', z, y')) <->
-  let (l, r) = growth (x', y') in
-  (Done, (l, x, z :: r))
-
-(* (Done, (S0, S0), Back) *)
-| (Done, (x', S0, y')) <->
-  let (l, r) = growth (x', y') in
-  (Back, (l, S0, r))
-
-(* (Done, (S1, S1), Back) *)
-| (Done, (x', S1, y')) <->
-  let (l, r) = growth (x', y') in
-  (Back, (l, S1, r))
-
-(* (Done, (B, B), Final) *)
-| (Done, (x', B, y')) <->
-  let (l, r) = growth (x', y') in
-  (Final, (l, B, r))
+iso compute = garbrem
+  {compose clean_up {it delta}}
+  {compose clean_up {it delta_inv}}
 in
 
-iso cvt = case
-| (Init, x) <-> ((Init, x), False)
-| (Next, x) <-> ((Next, x), False)
-| (Flip, x) <-> ((Flip, x), False)
-| (Done, x) <-> ((Done, x), False)
-| (Back, x) <-> ((Back, x), False)
-| (Final, x) <-> ((Final, x), True)
-in
-
-iso cvt_inv = case
-| (Init, x) <-> ((Init, x), True)
-| (Next, x) <-> ((Next, x), False)
-| (Flip, x) <-> ((Flip, x), False)
-| (Done, x) <-> ((Done, x), False)
-| (Back, x) <-> ((Back, x), False)
-| (Final, x) <-> ((Final, x), False)
-in
-
-iso isos_m = compose cvt delta in
-iso isos_m_inv = compose cvt_inv {inv delta} in
-
-iso f isos = case c <->
-  let (c, l, m, n, s) = compose clean_up {it isos} c in
-  (c, (l, m, n, s))
-in
-
-iso compute = garbrem {f isos_m} {f isos_m_inv} in
-
-it isos_m (Init, ([], B, [S0; S1; S0; S2]))
+compute (Init, ([], B, [S0; S1; S1; S2]))
 

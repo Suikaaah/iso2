@@ -3,16 +3,15 @@ type 'a option       = None | Some of 'a
 type ('l, 'r) either = Left of 'l | Right of 'r
 type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat             = Z (* 0 *) | S (* n *) of nat
-type ord             = Lt | Eq | Gt
 
 iso map f = case
-  | None   <-> None
-  | Some x <-> let y = f x in Some y
+| None   <-> None
+| Some x <-> let y = f x in Some y
 in
 
 iso if then else = case
-  | (True, x) <-> let x = then x in (True, x)
-  | (False, x) <-> let x = else x in (False, x)
+| (True, x)  <-> let x = then x in (True, x)
+| (False, x) <-> let x = else x in (False, x)
 in
 
 iso compose g f = case x <->
@@ -28,3 +27,4 @@ in
 iso crazy = inv wtf {fun x -> S} in
 
 ()
+

@@ -6,15 +6,15 @@ type nat             = Z (* 0 *) | S (* n *) of nat
 type ord             = Lt | Eq | Gt
 
 iso rec is_even = case
-  | 0 <-> (True, 0)
-  | 1 <-> (False, 1)
-  | S (S x) <-> let (b, x) = is_even x in (b, S (S x))
+| 0       <-> (True, 0)
+| 1       <-> (False, 1)
+| S (S x) <-> let (b, x) = is_even x in (b, S (S x))
 in
 
 (* add (x, y) = (x + y, y) *)
 iso rec add = case
-  | (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
-  | (m, 0) <-> (m, 0)
+| (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
+| (m, 0)   <-> (m, 0)
 in
 
 iso rec cantor_pairing = case x <->
@@ -30,12 +30,13 @@ iso rec cantor_pairing = case x <->
 in
 
 iso rec cmp = case
-  | (0, S n) <-> (Lt, 0, S n)
-  | (S n, 0) <-> (Gt, S n, 0)
-  | (0, 0) <-> (Eq, 0, 0)
-  | (S m, S n) <->
-      let (o, m, n) = cmp (m, n) in
-      (o, S m, S n)
+| (0, S n)   <-> (Lt, 0, S n)
+| (S n, 0)   <-> (Gt, S n, 0)
+| (0, 0)     <-> (Eq, 0, 0)
+| (S m, S n) <->
+  let (o, m, n) = cmp (m, n) in
+  (o, S m, S n)
 in
 
 ()
+
