@@ -3,19 +3,19 @@ type 'a option       = None | Some of 'a
 type ('l, 'r) either = Left of 'l | Right of 'r
 type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat             = Z (* 0 *) | S (* n *) of nat
-type q               = Init | Next | Flip | Done | Back | Final
-type s               = B | S0 | S1 | S2 | S3 | S4 | S5 | S6 | S7
 
-iso compose g f = case x <->
-  let x = f x in
-  let x = g x in x
-in
+(* states *)
+type q = Init | Next | Flip | Done | Back | Final
 
+(* symbols *)
+type s = B | S0 | S1 | S2 | S3 | S4 | S5 | S6 | S7
+
+(* len x = (x, <length of x>) *)
 iso rec len = case
 | [] <-> ([], 0)
-| h :: t <->
-  let (t, n) = len t in
-  (h :: t, S n)
+| x :: xs <->
+  let (xs, n) = len xs in
+  (x :: xs, S n)
 in
 
 iso rec snoc' = case
@@ -25,6 +25,7 @@ iso rec snoc' = case
   (h :: t, x, S n)
 in
 
+(* snoc (x, y) = (x, x @ [y]) *)
 iso snoc = case (x, y) <->
   let (x, n) = len x in
   let (x, y, n) = snoc' (x, y, n) in
@@ -32,22 +33,14 @@ iso snoc = case (x, y) <->
   (z, y)
 in
 
-iso rec rev' = case
-| ([], y) <-> ([], y)
-| (h :: t, y) <->
-  let (h1, h2) = (h, h) in
-  let (t1, t2) = rev' (t, h2 :: y) in
-  (h1 :: t1, t2)
+(* growth (x, y) = (x @ [B], y @ [B]) *)
+iso growth = case (x, y) <->
+  let (x, B) = snoc (x, B) in
+  let (y, B) = snoc (y, B) in
+  (x, y)
 in
 
-iso rev = case x <-> let x = rev' (x, []) in x in
-
-iso growth = case (l, r) <->
-  let (l, B) = snoc (l, B) in
-  let (r, B) = snoc (r, B) in
-  (l, r)
-in
-
+(* transitions with boolean stating if Final has been met *)
 iso delta = case
 (* (Init, (B, B), Next) *)
 | (Init, (x', B, y')) <->
@@ -95,6 +88,8 @@ iso delta = case
   ((Final, (l, B, r)), True)
 in
 
+(* inverse of delta *)
+(* transitions with boolean stating if Init has been met *)
 iso delta_inv = case
 (* (Next, (B, B), Init) *)
 | (Next, (x', B, y')) <->
@@ -142,9 +137,10 @@ iso delta_inv = case
   ((Done, (l, B, r)), False)
 in
 
-iso rec rm_blank = case
+(* rm_blank_f x = (<x w/o leading n blanks>, n) *)
+iso rec rm_blank_f = case
 | []      <-> ([], 0)
-| B :: t  <-> let (t, n) = rm_blank t in (t, S n)
+| B :: t  <-> let (t, n) = rm_blank_f t in (t, S n)
 | S0 :: t <-> (S0 :: t, 0)
 | S1 :: t <-> (S1 :: t, 0)
 | S2 :: t <-> (S2 :: t, 0)
@@ -155,13 +151,29 @@ iso rec rm_blank = case
 | S7 :: t <-> (S7 :: t, 0)
 in
 
-iso clean_up = case ((x, (l, y, r)), n) <->
-  let (l, n1) = rm_blank l in
-  let (r_ori, r_rev) = rev r in
-  let (r, n2) = rm_blank r_rev in
-  ((x, (l, y, r)), (n, n1, n2, r_ori))
+(* rm_blank_b x = (<x w/o trailing n blanks>, n) *)
+iso rec rm_blank_b = case
+| []      <-> ([], 0)
+| B :: t  <-> let ([], n) = rm_blank_b t in ([], S n)
+| S0 :: t <-> let (t, n) = rm_blank_b t in (S0 :: t, n)
+| S1 :: t <-> let (t, n) = rm_blank_b t in (S1 :: t, n)
+| S2 :: t <-> let (t, n) = rm_blank_b t in (S2 :: t, n)
+| S3 :: t <-> let (t, n) = rm_blank_b t in (S3 :: t, n)
+| S4 :: t <-> let (t, n) = rm_blank_b t in (S4 :: t, n)
+| S5 :: t <-> let (t, n) = rm_blank_b t in (S5 :: t, n)
+| S6 :: t <-> let (t, n) = rm_blank_b t in (S6 :: t, n)
+| S7 :: t <-> let (t, n) = rm_blank_b t in (S7 :: t, n)
 in
 
+(* clean_up (c, garb) = (<c w/o unnecessary blanks>, garb') *)
+iso clean_up = case ((x, (l, y, r)), n) <->
+  let (l, n1) = rm_blank_f l in
+  let (r, n2) = rm_blank_b r in
+  ((x, (l, y, r)), (n, n1, n2))
+in
+
+(* applies f (n + 1) times *)
+(* returns the result and n *)
 iso rec it f = case x <->
   let y = f x in
   let z = match y with
@@ -170,7 +182,8 @@ iso rec it f = case x <->
   in z
 in
 
-iso garbrem f g = case x <->
+(* Bennett's trick *)
+iso rm_garb f g = case x <->
   let (x, y) = f x in
   let (x, z) = (x, x) in
   let x = inv f (x, y) in
@@ -180,10 +193,15 @@ iso garbrem f g = case x <->
   z
 in
 
-iso compute = garbrem
+iso compose g f = case x <->
+  let x = f x in
+  let x = g x in x
+in
+
+iso compute = rm_garb
   {compose clean_up {it delta}}
   {compose clean_up {it delta_inv}}
 in
 
-compute (Init, ([], B, [S0; S1; S1; S2]))
+compute (Init, ([], B, [S0; S1; S1; S0; S0; S0; S2]))
 
