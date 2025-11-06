@@ -1,8 +1,6 @@
-type bool            = False | True
-type 'a option       = None | Some of 'a
-type ('l, 'r) either = Left of 'l | Right of 'r
-type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
-type nat             = Z (* 0 *) | S (* n *) of nat
+type nat     = Z (* 0 *) | S (* n *) of nat
+type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
+type bool    = False | True
 
 (* states *)
 type q = Init | Next | Flip | Done | Back | Final
@@ -18,112 +16,115 @@ iso rec len = case
   (x :: xs, S n)
 in
 
+(* aux *)
 iso rec snoc' = case
-| ([], x, 0) <-> ([x], x, 0)
-| (h :: t, x, S n) <->
-  let (t, x, n) = snoc' (t, x, n) in
-  (h :: t, x, S n)
+| ([], y, 0) <-> ([y], y, 0)
+| (x :: xs, y, S n) <->
+  let (xs, y, n) = snoc' (xs, y, n) in
+  (x :: xs, y, S n)
 in
 
 (* snoc (x, y) = (x @ [y], y) *)
 iso snoc = case (x, y) <->
   let (x, n) = len x in
   let (x, y, n) = snoc' (x, y, n) in
-  let z = inv len (x, S n) in
-  (z, y)
+  let x = inv len (x, S n) in
+  (x, y)
 in
 
-(* growth (x, y) = (x @ [B], y @ [B]) *)
-iso growth = case (x, y) <->
+(* extend (x, y) = (x @ [B], y @ [B]) *)
+iso extend = case (x, y) <->
   let (x, B) = snoc (x, B) in
   let (y, B) = snoc (y, B) in
   (x, y)
 in
 
 (* transitions *)
-iso delta growth = case
+iso delta extend = case
 (* (Init, (B, B), Next) *)
-| (Init, (x', B, y')) <->
-  let (l, r) = growth (x', y') in
+| (Init, (l, B, r)) <->
+  let (l, r) = extend (l, r) in
   (Next, (l, B, r))
 
 (* (Next, ->, Flip) *)
-| (Next, (x', z, y :: y')) <->
-  let (l, r) = growth (x', y') in
-  (Flip, (z :: l, y, r))
+| (Next, (l, s, s' :: r)) <->
+  let (l, r) = extend (l, r) in
+  (Flip, (s :: l, s', r))
 
 (* (Flip, (S0, S1), Next) *)
-| (Flip, (x', S0, y')) <->
-  let (l, r) = growth (x', y') in
+| (Flip, (l, S0, r)) <->
+  let (l, r) = extend (l, r) in
   (Next, (l, S1, r))
 
 (* (Flip, (S1, S0), Next) *)
-| (Flip, (x', S1, y')) <->
-  let (l, r) = growth (x', y') in
+| (Flip, (l, S1, r)) <->
+  let (l, r) = extend (l, r) in
   (Next, (l, S0, r))
 
-(* (Flip, (S2, S2), Back) *)
-| (Flip, (x', S2, y')) <->
-  let (l, r) = growth (x', y') in
-  (Back, (l, S2, r))
+(* (Flip, (B, B), Back) *)
+| (Flip, (l, B, r)) <->
+  let (l, r) = extend (l, r) in
+  (Back, (l, B, r))
 
 (* (Back, <-, Done) *)
-| (Back, (x :: x', z, y')) <->
-  let (l, r) = growth (x', y') in
-  (Done, (l, x, z :: r))
+| (Back, (s' :: l, s, r)) <->
+  let (l, r) = extend (l, r) in
+  (Done, (l, s', s :: r))
 
 (* (Done, (S0, S0), Back) *)
-| (Done, (x', S0, y')) <->
-  let (l, r) = growth (x', y') in
+| (Done, (l, S0, r)) <->
+  let (l, r) = extend (l, r) in
   (Back, (l, S0, r))
 
 (* (Done, (S1, S1), Back) *)
-| (Done, (x', S1, y')) <->
-  let (l, r) = growth (x', y') in
+| (Done, (l, S1, r)) <->
+  let (l, r) = extend (l, r) in
   (Back, (l, S1, r))
 
 (* (Done, (B, B), Final) *)
-| (Done, (x', B, y')) <->
-  let (l, r) = growth (x', y') in
+| (Done, (l, B, r)) <->
+  let (l, r) = extend (l, r) in
   (Final, (l, B, r))
 in
 
-iso delta_fwd = case x <->
-  let d = delta growth x in
-  let d = match d with
-    | (Init, x) <-> ((Init, x), False)
-    | (Next, x) <-> ((Next, x), False)
-    | (Flip, x) <-> ((Flip, x), False)
-    | (Done, x) <-> ((Done, x), False)
-    | (Back, x) <-> ((Back, x), False)
-    | (Final, x) <-> ((Final, x), True)
-  in d
+(* adds a boolean indicating termination *)
+iso delta_fwd = case conf <->
+  let conf = delta extend conf in
+  let conf_bool = match conf with
+    | (Init, t)  <-> ((Init, t), False)
+    | (Next, t)  <-> ((Next, t), False)
+    | (Flip, t)  <-> ((Flip, t), False)
+    | (Done, t)  <-> ((Done, t), False)
+    | (Back, t)  <-> ((Back, t), False)
+    | (Final, t) <-> ((Final, t), True)
+  in conf_bool
 in
 
-iso delta_bwd = case x <->
-  let d = inv delta growth x in
-  let d = match d with
-    | (Init, x) <-> ((Init, x), True)
-    | (Next, x) <-> ((Next, x), False)
-    | (Flip, x) <-> ((Flip, x), False)
-    | (Done, x) <-> ((Done, x), False)
-    | (Back, x) <-> ((Back, x), False)
-    | (Final, x) <-> ((Final, x), False)
-  in d
+(* now Init is the final state *)
+iso delta_bwd = case conf <->
+  let conf = inv delta extend conf in
+  let conf_bool = match conf with
+    | (Init, t)  <-> ((Init, t), True)
+    | (Next, t)  <-> ((Next, t), False)
+    | (Flip, t)  <-> ((Flip, t), False)
+    | (Done, t)  <-> ((Done, t), False)
+    | (Back, t)  <-> ((Back, t), False)
+    | (Final, t) <-> ((Final, t), False)
+  in conf_bool
 in
 
 (* rm_blank x = (<x w/o trailing n blanks>, n) *)
 iso rec rm_blank = case
 | []      <-> ([], 0)
-| B :: t  <-> let ([], n) = rm_blank t in ([], S n)
-| S0 :: t <-> let (t, n) = rm_blank t in (S0 :: t, n)
-| S1 :: t <-> let (t, n) = rm_blank t in (S1 :: t, n)
-| S2 :: t <-> let (t, n) = rm_blank t in (S2 :: t, n)
-| S3 :: t <-> let (t, n) = rm_blank t in (S3 :: t, n)
-| S4 :: t <-> let (t, n) = rm_blank t in (S4 :: t, n)
-| S5 :: t <-> let (t, n) = rm_blank t in (S5 :: t, n)
-| S6 :: t <-> let (t, n) = rm_blank t in (S6 :: t, n)
-| S7 :: t <-> let (t, n) = rm_blank t in (S7 :: t, n)
+| B  :: t <-> let ([], n) = rm_blank t in ([], S n)
+| S0 :: t <-> let (t, n)  = rm_blank t in (S0 :: t, n)
+| S1 :: t <-> let (t, n)  = rm_blank t in (S1 :: t, n)
+| S2 :: t <-> let (t, n)  = rm_blank t in (S2 :: t, n)
+| S3 :: t <-> let (t, n)  = rm_blank t in (S3 :: t, n)
+| S4 :: t <-> let (t, n)  = rm_blank t in (S4 :: t, n)
+| S5 :: t <-> let (t, n)  = rm_blank t in (S5 :: t, n)
+| S6 :: t <-> let (t, n)  = rm_blank t in (S6 :: t, n)
+| S7 :: t <-> let (t, n)  = rm_blank t in (S7 :: t, n)
 in
 
 (* clean_up (c, garb) = (<c w/o unnecessary blanks>, garb') *)
@@ -136,11 +137,11 @@ in
 (* applies f (n + 1) times *)
 (* returns the result and n *)
 iso rec iter f = case x <->
-  let y = f x in
-  let z = match y with
-    | (y, False) <-> let (y, n) = iter f y in (y, S n)
-    | (y, True)  <-> (y, 0)
-  in z
+  let x = f x in
+  let x = match x with
+    | (x, False) <-> let (x, n) = iter f x in (x, S n)
+    | (x, True)  <-> (x, 0)
+  in x
 in
 
 (* Bennett's trick *)
@@ -153,20 +154,23 @@ iso rm_garb f g = case x <->
   let z = inv g (z, y) in z
 in
 
+(* compose g f x = g (f x) *)
 iso compose g f = case x <->
   let x = f x in
   let x = g x in x
 in
 
+(* stdconf <-> stdconf *)
 iso compute = rm_garb
   {compose clean_up {iter delta_fwd}}
   {compose clean_up {iter delta_bwd}}
 in
 
-iso str_sem = case tape <->
+(* tape <-> tape *)
+iso sem = case tape <->
   let (Final, ([], B, tape)) =
     compute (Init, ([], B, tape)) in tape
 in
 
-str_sem [S0; S1; S1; S0; S0; S2]
+sem [S0; S1; S1; S0; S1; S0]
 

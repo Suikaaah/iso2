@@ -134,9 +134,7 @@ let show_equation ((a, b) : equation) : string =
 let show_equations : equation list -> string = show_list show_equation
 
 let subst_in_context (s : subst) : context -> context =
-  StrMap.map
-    begin
-      function
+  StrMap.map begin function
       | Mono a -> Mono (subst s a)
       | Scheme { forall; a } when List.for_all (( <> ) s.what) forall ->
           Scheme { forall; a = subst s a }
