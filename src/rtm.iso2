@@ -112,38 +112,24 @@ iso delta_bwd = case x <->
   in d
 in
 
-(* rm_blank_f x = (<x w/o leading n blanks>, n) *)
-iso rec rm_b_front = case
+(* rm_blank x = (<x w/o trailing n blanks>, n) *)
+iso rec rm_blank = case
 | []      <-> ([], 0)
-| B :: t  <-> let (t, n) = rm_b_front t in (t, S n)
-| S0 :: t <-> (S0 :: t, 0)
-| S1 :: t <-> (S1 :: t, 0)
-| S2 :: t <-> (S2 :: t, 0)
-| S3 :: t <-> (S3 :: t, 0)
-| S4 :: t <-> (S4 :: t, 0)
-| S5 :: t <-> (S5 :: t, 0)
-| S6 :: t <-> (S6 :: t, 0)
-| S7 :: t <-> (S7 :: t, 0)
-in
-
-(* rm_blank_b x = (<x w/o trailing n blanks>, n) *)
-iso rec rm_b_back = case
-| []      <-> ([], 0)
-| B :: t  <-> let ([], n) = rm_b_back t in ([], S n)
-| S0 :: t <-> let (t, n) = rm_b_back t in (S0 :: t, n)
-| S1 :: t <-> let (t, n) = rm_b_back t in (S1 :: t, n)
-| S2 :: t <-> let (t, n) = rm_b_back t in (S2 :: t, n)
-| S3 :: t <-> let (t, n) = rm_b_back t in (S3 :: t, n)
-| S4 :: t <-> let (t, n) = rm_b_back t in (S4 :: t, n)
-| S5 :: t <-> let (t, n) = rm_b_back t in (S5 :: t, n)
-| S6 :: t <-> let (t, n) = rm_b_back t in (S6 :: t, n)
-| S7 :: t <-> let (t, n) = rm_b_back t in (S7 :: t, n)
+| B :: t  <-> let ([], n) = rm_blank t in ([], S n)
+| S0 :: t <-> let (t, n) = rm_blank t in (S0 :: t, n)
+| S1 :: t <-> let (t, n) = rm_blank t in (S1 :: t, n)
+| S2 :: t <-> let (t, n) = rm_blank t in (S2 :: t, n)
+| S3 :: t <-> let (t, n) = rm_blank t in (S3 :: t, n)
+| S4 :: t <-> let (t, n) = rm_blank t in (S4 :: t, n)
+| S5 :: t <-> let (t, n) = rm_blank t in (S5 :: t, n)
+| S6 :: t <-> let (t, n) = rm_blank t in (S6 :: t, n)
+| S7 :: t <-> let (t, n) = rm_blank t in (S7 :: t, n)
 in
 
 (* clean_up (c, garb) = (<c w/o unnecessary blanks>, garb') *)
 iso clean_up = case ((x, (l, y, r)), n) <->
-  let (l, n1) = rm_b_front l in
-  let (r, n2) = rm_b_back r in
+  let (l, n1) = rm_blank l in
+  let (r, n2) = rm_blank r in
   ((x, (l, y, r)), (n, n1, n2))
 in
 
@@ -164,8 +150,7 @@ iso rm_garb f g = case x <->
   let x = inv f (x, y) in
   let (z, y) = g z in
   let (z, z) = (z, x) in
-  let z = inv g (z, y) in
-  z
+  let z = inv g (z, y) in z
 in
 
 iso compose g f = case x <->
