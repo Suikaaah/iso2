@@ -25,7 +25,7 @@ iso rec snoc' = case
   (h :: t, x, S n)
 in
 
-(* snoc (x, y) = (x, x @ [y]) *)
+(* snoc (x, y) = (x @ [y], y) *)
 iso snoc = case (x, y) <->
   let (x, n) = len x in
   let (x, y, n) = snoc' (x, y, n) in
@@ -40,107 +40,82 @@ iso growth = case (x, y) <->
   (x, y)
 in
 
-(* transitions with boolean stating if Final has been met *)
-iso delta = case
+(* transitions *)
+iso delta growth = case
 (* (Init, (B, B), Next) *)
 | (Init, (x', B, y')) <->
   let (l, r) = growth (x', y') in
-  ((Next, (l, B, r)), False)
+  (Next, (l, B, r))
 
 (* (Next, ->, Flip) *)
 | (Next, (x', z, y :: y')) <->
   let (l, r) = growth (x', y') in
-  ((Flip, (z :: l, y, r)), False)
+  (Flip, (z :: l, y, r))
 
 (* (Flip, (S0, S1), Next) *)
 | (Flip, (x', S0, y')) <->
   let (l, r) = growth (x', y') in
-  ((Next, (l, S1, r)), False)
+  (Next, (l, S1, r))
 
 (* (Flip, (S1, S0), Next) *)
 | (Flip, (x', S1, y')) <->
   let (l, r) = growth (x', y') in
-  ((Next, (l, S0, r)), False)
+  (Next, (l, S0, r))
 
 (* (Flip, (S2, S2), Back) *)
 | (Flip, (x', S2, y')) <->
   let (l, r) = growth (x', y') in
-  ((Back, (l, S2, r)), False)
+  (Back, (l, S2, r))
 
 (* (Back, <-, Done) *)
 | (Back, (x :: x', z, y')) <->
   let (l, r) = growth (x', y') in
-  ((Done, (l, x, z :: r)), False)
+  (Done, (l, x, z :: r))
 
 (* (Done, (S0, S0), Back) *)
 | (Done, (x', S0, y')) <->
   let (l, r) = growth (x', y') in
-  ((Back, (l, S0, r)), False)
+  (Back, (l, S0, r))
 
 (* (Done, (S1, S1), Back) *)
 | (Done, (x', S1, y')) <->
   let (l, r) = growth (x', y') in
-  ((Back, (l, S1, r)), False)
+  (Back, (l, S1, r))
 
 (* (Done, (B, B), Final) *)
 | (Done, (x', B, y')) <->
   let (l, r) = growth (x', y') in
-  ((Final, (l, B, r)), True)
+  (Final, (l, B, r))
 in
 
-(* inverse of delta *)
-(* transitions with boolean stating if Init has been met *)
-iso delta_inv = case
-(* (Next, (B, B), Init) *)
-| (Next, (x', B, y')) <->
-  let (l, r) = growth (x', y') in
-  ((Init, (l, B, r)), True)
+iso delta_fwd = case x <->
+  let d = delta growth x in
+  let d = match d with
+    | (Init, x) <-> ((Init, x), False)
+    | (Next, x) <-> ((Next, x), False)
+    | (Flip, x) <-> ((Flip, x), False)
+    | (Done, x) <-> ((Done, x), False)
+    | (Back, x) <-> ((Back, x), False)
+    | (Final, x) <-> ((Final, x), True)
+  in d
+in
 
-(* (Flip, <-, Next) *)
-| (Flip, (x :: x', z, y')) <->
-  let (l, r) = growth (x', y') in
-  ((Next, (l, x, z :: r)), False)
-
-(* (Next, (S1, S0), Flip) *)
-| (Next, (x', S1, y')) <->
-  let (l, r) = growth (x', y') in
-  ((Flip, (l, S0, r)), False)
-
-(* (Next, (S0, S1), Flip) *)
-| (Next, (x', S0, y')) <->
-  let (l, r) = growth (x', y') in
-  ((Flip, (l, S1, r)), False)
-
-(* (Back, (S2, S2), Flip) *)
-| (Back, (x', S2, y')) <->
-  let (l, r) = growth (x', y') in
-  ((Flip, (l, S2, r)), False)
-
-(* (Done, ->, Back) *)
-| (Done, (x', z, y :: y')) <->
-  let (l, r) = growth (x', y') in
-  ((Back, (z :: l, y, r)), False)
-
-(* (Back, (S0, S0), Done) *)
-| (Back, (x', S0, y')) <->
-  let (l, r) = growth (x', y') in
-  ((Done, (l, S0, r)), False)
-
-(* (Back, (S1, S1), Done) *)
-| (Back, (x', S1, y')) <->
-  let (l, r) = growth (x', y') in
-  ((Done, (l, S1, r)), False)
-
-(* (Final, (B, B), Done) *)
-| (Final, (x', B, y')) <->
-  let (l, r) = growth (x', y') in
-  ((Done, (l, B, r)), False)
+iso delta_bwd = case x <->
+  let d = inv delta growth x in
+  let d = match d with
+    | (Init, x) <-> ((Init, x), True)
+    | (Next, x) <-> ((Next, x), False)
+    | (Flip, x) <-> ((Flip, x), False)
+    | (Done, x) <-> ((Done, x), False)
+    | (Back, x) <-> ((Back, x), False)
+    | (Final, x) <-> ((Final, x), False)
+  in d
 in
 
 (* rm_blank_f x = (<x w/o leading n blanks>, n) *)
-iso rec rm_blank_f = case
+iso rec rm_b_front = case
 | []      <-> ([], 0)
-| B :: t  <-> let (t, n) = rm_blank_f t in (t, S n)
+| B :: t  <-> let (t, n) = rm_b_front t in (t, S n)
 | S0 :: t <-> (S0 :: t, 0)
 | S1 :: t <-> (S1 :: t, 0)
 | S2 :: t <-> (S2 :: t, 0)
@@ -152,32 +127,32 @@ iso rec rm_blank_f = case
 in
 
 (* rm_blank_b x = (<x w/o trailing n blanks>, n) *)
-iso rec rm_blank_b = case
+iso rec rm_b_back = case
 | []      <-> ([], 0)
-| B :: t  <-> let ([], n) = rm_blank_b t in ([], S n)
-| S0 :: t <-> let (t, n) = rm_blank_b t in (S0 :: t, n)
-| S1 :: t <-> let (t, n) = rm_blank_b t in (S1 :: t, n)
-| S2 :: t <-> let (t, n) = rm_blank_b t in (S2 :: t, n)
-| S3 :: t <-> let (t, n) = rm_blank_b t in (S3 :: t, n)
-| S4 :: t <-> let (t, n) = rm_blank_b t in (S4 :: t, n)
-| S5 :: t <-> let (t, n) = rm_blank_b t in (S5 :: t, n)
-| S6 :: t <-> let (t, n) = rm_blank_b t in (S6 :: t, n)
-| S7 :: t <-> let (t, n) = rm_blank_b t in (S7 :: t, n)
+| B :: t  <-> let ([], n) = rm_b_back t in ([], S n)
+| S0 :: t <-> let (t, n) = rm_b_back t in (S0 :: t, n)
+| S1 :: t <-> let (t, n) = rm_b_back t in (S1 :: t, n)
+| S2 :: t <-> let (t, n) = rm_b_back t in (S2 :: t, n)
+| S3 :: t <-> let (t, n) = rm_b_back t in (S3 :: t, n)
+| S4 :: t <-> let (t, n) = rm_b_back t in (S4 :: t, n)
+| S5 :: t <-> let (t, n) = rm_b_back t in (S5 :: t, n)
+| S6 :: t <-> let (t, n) = rm_b_back t in (S6 :: t, n)
+| S7 :: t <-> let (t, n) = rm_b_back t in (S7 :: t, n)
 in
 
 (* clean_up (c, garb) = (<c w/o unnecessary blanks>, garb') *)
 iso clean_up = case ((x, (l, y, r)), n) <->
-  let (l, n1) = rm_blank_f l in
-  let (r, n2) = rm_blank_b r in
+  let (l, n1) = rm_b_front l in
+  let (r, n2) = rm_b_back r in
   ((x, (l, y, r)), (n, n1, n2))
 in
 
 (* applies f (n + 1) times *)
 (* returns the result and n *)
-iso rec it f = case x <->
+iso rec iter f = case x <->
   let y = f x in
   let z = match y with
-    | (y, False) <-> let (y, n) = it f y in (y, S n)
+    | (y, False) <-> let (y, n) = iter f y in (y, S n)
     | (y, True)  <-> (y, 0)
   in z
 in
@@ -199,9 +174,14 @@ iso compose g f = case x <->
 in
 
 iso compute = rm_garb
-  {compose clean_up {it delta}}
-  {compose clean_up {it delta_inv}}
+  {compose clean_up {iter delta_fwd}}
+  {compose clean_up {iter delta_bwd}}
 in
 
-compute (Init, ([], B, [S0; S1; S1; S0; S0; S0; S2]))
+iso str_sem = case tape <->
+  let (Final, ([], B, tape)) =
+    compute (Init, ([], B, tape)) in tape
+in
+
+str_sem [S0; S1; S1; S0; S0; S2]
 
