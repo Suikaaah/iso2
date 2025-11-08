@@ -107,5 +107,12 @@ iso iota = case n <->
   let l = rev l in l
 in
 
-iota 8
+iso rec push_back = case
+| ([], y)      <-> [y]
+| (x :: xs, y) <->
+  let y :: xs = push_back (xs, y) in
+  x :: y :: xs
+in
+
+()
 

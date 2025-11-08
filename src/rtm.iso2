@@ -8,35 +8,18 @@ type q = Init | Next | Flip | Done | Back | Final
 (* symbols *)
 type s = B | S0 | S1 | S2 | S3 | S4 | S5 | S6 | S7
 
-(* len x = (x, <length of x>) *)
-iso rec len = case
-| [] <-> ([], 0)
-| x :: xs <->
-  let (xs, n) = len xs in
-  (x :: xs, S n)
-in
-
-(* aux *)
-iso rec snoc' = case
-| ([], y, 0) <-> ([y], y, 0)
-| (x :: xs, y, S n) <->
-  let (xs, y, n) = snoc' (xs, y, n) in
-  (x :: xs, y, S n)
-in
-
-(* snoc (x, y) = (x @ [y], y) *)
-iso snoc = case (x, y) <->
-  let (x, n) = len x in
-  let (x, y, n) = snoc' (x, y, n) in
-  let x = inv len (x, S n) in
-  (x, y)
+(* push_back (x, y) = x @ [y] *)
+iso rec push_back = case
+| ([], y)      <-> [y]
+| (x :: xs, y) <->
+  let y :: xs = push_back (xs, y) in
+  x :: y :: xs
 in
 
 (* extend (x, y) = (x @ [B], y @ [B]) *)
 iso extend = case (x, y) <->
-  let (x, B) = snoc (x, B) in
-  let (y, B) = snoc (y, B) in
-  (x, y)
+  let x = push_back (x, B) in
+  let y = push_back (y, B) in (x, y)
 in
 
 (* transitions *)

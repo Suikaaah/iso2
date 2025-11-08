@@ -13,8 +13,8 @@ in
 
 (* add (x, y) = (x + y, y) *)
 iso rec add = case
-| (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
 | (m, 0)   <-> (m, 0)
+| (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
 in
 
 iso rec cantor_pairing = case x <->
@@ -38,5 +38,15 @@ iso rec cmp = case
   (o, S m, S n)
 in
 
-()
+iso rec fib = case
+| 0 <-> (1, 1)
+| S n <->
+  let (x1, x2) = fib n in
+  let (S (S x2'), x1) = add (x1, x2) in
+  (x1, S (S x2'))
+in
 
+let (5, 8) = fib 4 in
+let 4 = inv fib (5, 8) in
+
+()
