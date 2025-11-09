@@ -6,7 +6,7 @@ type bool    = False | True
 type q = Init | Next | Flip | Done | Back | Final
 
 (* symbols *)
-type s = B | S0 | S1 | S2 | S3 | S4 | S5 | S6 | S7
+type s = B | A0 | A1 | A2 | A3
 
 (* push_back (x, y) = x @ [y] *)
 iso rec push_back = case
@@ -34,15 +34,15 @@ iso delta extend = case
   let (l, r) = extend (l, r) in
   (Flip, (s :: l, s', r))
 
-(* (Flip, (S0, S1), Next) *)
-| (Flip, (l, S0, r)) <->
+(* (Flip, (A0, A1), Next) *)
+| (Flip, (l, A0, r)) <->
   let (l, r) = extend (l, r) in
-  (Next, (l, S1, r))
+  (Next, (l, A1, r))
 
-(* (Flip, (S1, S0), Next) *)
-| (Flip, (l, S1, r)) <->
+(* (Flip, (A1, A0), Next) *)
+| (Flip, (l, A1, r)) <->
   let (l, r) = extend (l, r) in
-  (Next, (l, S0, r))
+  (Next, (l, A0, r))
 
 (* (Flip, (B, B), Back) *)
 | (Flip, (l, B, r)) <->
@@ -54,15 +54,15 @@ iso delta extend = case
   let (l, r) = extend (l, r) in
   (Done, (l, s', s :: r))
 
-(* (Done, (S0, S0), Back) *)
-| (Done, (l, S0, r)) <->
+(* (Done, (A0, A0), Back) *)
+| (Done, (l, A0, r)) <->
   let (l, r) = extend (l, r) in
-  (Back, (l, S0, r))
+  (Back, (l, A0, r))
 
-(* (Done, (S1, S1), Back) *)
-| (Done, (l, S1, r)) <->
+(* (Done, (A1, A1), Back) *)
+| (Done, (l, A1, r)) <->
   let (l, r) = extend (l, r) in
-  (Back, (l, S1, r))
+  (Back, (l, A1, r))
 
 (* (Done, (B, B), Final) *)
 | (Done, (l, B, r)) <->
@@ -100,14 +100,10 @@ in
 iso rec rm_blank = case
 | []      <-> ([], 0)
 | B  :: t <-> let ([], n) = rm_blank t in ([], S n)
-| S0 :: t <-> let (t, n)  = rm_blank t in (S0 :: t, n)
-| S1 :: t <-> let (t, n)  = rm_blank t in (S1 :: t, n)
-| S2 :: t <-> let (t, n)  = rm_blank t in (S2 :: t, n)
-| S3 :: t <-> let (t, n)  = rm_blank t in (S3 :: t, n)
-| S4 :: t <-> let (t, n)  = rm_blank t in (S4 :: t, n)
-| S5 :: t <-> let (t, n)  = rm_blank t in (S5 :: t, n)
-| S6 :: t <-> let (t, n)  = rm_blank t in (S6 :: t, n)
-| S7 :: t <-> let (t, n)  = rm_blank t in (S7 :: t, n)
+| A0 :: t <-> let (t, n)  = rm_blank t in (A0 :: t, n)
+| A1 :: t <-> let (t, n)  = rm_blank t in (A1 :: t, n)
+| A2 :: t <-> let (t, n)  = rm_blank t in (A2 :: t, n)
+| A3 :: t <-> let (t, n)  = rm_blank t in (A3 :: t, n)
 in
 
 (* clean_up (c, garb) = (<c w/o unnecessary blanks>, garb') *)
@@ -155,5 +151,5 @@ iso sem = case tape <->
     compute (Init, ([], B, tape)) in tape
 in
 
-sem [S0; S1; S1; S0; S1; S0]
+sem [A0; A1; A1; A0; A1; A0]
 

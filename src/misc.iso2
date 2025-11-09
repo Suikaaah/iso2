@@ -6,7 +6,7 @@ type nat             = Z (* 0 *) | S (* n *) of nat
 
 iso map f = case
 | None   <-> None
-| Some x <-> let y = f x in Some y
+| Some x <-> let x = f x in Some x
 in
 
 iso if then else = case
@@ -18,13 +18,6 @@ iso compose g f = case x <->
   let x = f x in
   let x = g x in x
 in
-
-iso rec wtf f g h = case x <->
-  let x = f g x in
-  let x = wtf h g f x in x
-in
-
-iso crazy = inv wtf {fun x -> S} in
 
 ()
 

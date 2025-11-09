@@ -17,14 +17,6 @@ iso rec map f = case
   h :: t
 in
 
-iso rec last = case
-| []          <-> (None, [])
-| [x]         <-> (Some x, [x])
-| x :: y :: t <->
-  let (opt, y :: t) = last (y :: t) in
-  (opt, x :: y :: t)
-in
-
 iso rec double = case
 | []      <-> []
 | x :: xs <->
@@ -84,7 +76,7 @@ in
 
 iso concat = inv partition in
 
-(* add (x, y) = (x + y, y) *)
+(* add (m, n) = (m + n, n) *)
 iso rec add = case
 | (m, S n) <-> let (m, n) = add (S m, n) in (m, S n)
 | (m, 0)   <-> (m, 0)
@@ -114,5 +106,5 @@ iso rec push_back = case
   x :: y :: xs
 in
 
-()
+push_back ([3; 2; 1], 8)
 
