@@ -124,13 +124,13 @@ iso rec iter f = case x <->
 in
 
 (* Bennett's trick *)
-iso rm_garb f g = case x <->
-  let (x, y) = f x in
-  let (x, z) = (x, x) in
-  let x = inv f (x, y) in
-  let (z, y) = g z in
-  let (z, z) = (z, x) in
-  let z = inv g (z, y) in z
+iso rm_garb f g = case i <->
+  let (o, gb) = f i in
+  let (o, o') = (o, o) in
+  let i = inv f (o, gb) in
+  let (i', gb) = g o' in
+  let (i, i) = (i, i') in
+  let o = inv g (i, gb) in o
 in
 
 (* compose g f x = g (f x) *)
