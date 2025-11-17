@@ -4,11 +4,12 @@ type ('l, 'r) either = Left of 'l | Right of 'r
 type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat             = Z (* 0 *) | S (* n *) of nat
 type ord             = Lt | Eq | Gt
+type parity          = Even | Odd
 
-iso rec is_even = case
-| 0       <-> (True, 0)
-| 1       <-> (False, 1)
-| S (S x) <-> let (b, x) = is_even x in (b, S (S x))
+iso rec parity = case
+| 0       <-> (Even, 0)
+| 1       <-> (Odd, 1)
+| S (S x) <-> let (b, x) = parity x in (b, S (S x))
 in
 
 (* add (x, y) = (x + y, y) *)
@@ -49,5 +50,5 @@ in
 let (5, 8) = fib 4 in
 let 4 = inv fib (5, 8) in
 
-()
+parity 37
 
