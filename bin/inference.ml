@@ -309,7 +309,7 @@ let generalize_iso (e : equation list) (ctx : context) (phi : string) (a : any)
     else Printf.sprintf "%-12s" phi
   in
   "| " ^ name ^ " : " ^ show_any (tvar_map [ u_show ]) u_show
-  |> green |> print_endline;
+  |> boldpurple |> print_endline;
   let ctx = List.fold_left (fun ctx s -> subst_in_context s ctx) ctx substs in
   let generalized = Scheme { forall = find_generalizable u ctx; a = u } in
   StrMap.add phi generalized ctx
