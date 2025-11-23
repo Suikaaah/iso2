@@ -3,9 +3,7 @@ open Util
 
 type equation
 type subst
-type generator
 
-val fresh : generator -> int
 val subst : subst -> value -> value
 val subst_in_equations : subst -> equation list -> equation list
 val subst_in_expr : what:string -> into:string -> expr -> expr

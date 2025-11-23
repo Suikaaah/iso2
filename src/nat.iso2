@@ -23,11 +23,9 @@ iso rec cantor_pairing = case x <->
     | (S i, j) <-> Some (i, S j)
     | (0, S j) <-> Some (j, 0)
     | (0, 0)   <-> None
-  in
-  let z = match y with
+  in match y with
     | Some x <-> let y = cantor_pairing x in S y
     | None   <-> 0
-  in z
 in
 
 iso rec cmp = case

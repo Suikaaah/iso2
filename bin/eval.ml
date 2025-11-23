@@ -47,10 +47,6 @@ let rec invert (omega : iso) : iso =
   | Fix { phi; omega } -> Fix { phi; omega = invert omega }
   | Lambda { psi; omega } -> Lambda { psi; omega = invert omega }
   | Var _ (* fix i guess *) -> omega
-  | Ctor x ->
-      let vr : value = Var "x" in
-      let vl = Cted { c = x; v = vr } in
-      Pairs [ (vl, Value vr) ]
   | App { omega_1; omega_2 } ->
       App { omega_1 = invert omega_1; omega_2 = invert omega_2 }
   | Invert omega -> omega
@@ -58,7 +54,8 @@ let rec invert (omega : iso) : iso =
 let rec subst ~(from : string) ~(into : term) ~(what : term) : term =
   let subst what = subst ~from ~into ~what in
   match what with
-  | Named x when x = from -> into
+  | Var x when x = from -> into
+  | Cted { c; t } -> Cted { c; t = subst t }
   | Tuple l -> Tuple (List.map subst l)
   | App { omega; t } -> App { omega; t = subst t }
   | Let { p; t_1; t_2 } when contains_value from p ->
@@ -107,6 +104,7 @@ let rec subst_iso_in_term ~(from : string) ~(into : iso) ~(what : term) : term =
   let subst_iso what = subst_iso ~from ~into ~what in
   match what with
   | Tuple l -> Tuple (List.map subst_iso_in_term l)
+  | Cted { c; t } -> Cted { c; t = subst_iso_in_term t }
   | App { omega; t } -> App { omega = subst_iso omega; t = subst_iso_in_term t }
   | Let { p; t_1; t_2 } when contains_value from p ->
       Let { p; t_1 = subst_iso_in_term t_1; t_2 }
@@ -121,15 +119,16 @@ let rec subst_iso_in_term ~(from : string) ~(into : iso) ~(what : term) : term =
 let rec value_of_term (t : term) : value myresult =
   match t with
   | Unit -> Ok Unit
-  | Named x when is_variable x -> Ok (Var x)
-  | Named x -> Ok (Ctor x)
+  | Var x -> Ok (Var x)
+  | Ctor x -> Ok (Ctor x)
   | Tuple l ->
       let++ l = List.map value_of_term l |> bind_all in
       let lmao : value = Tuple l in
       lmao
-  | App { omega = Ctor c; t : term } ->
+  | Cted { c; t : term } ->
       let++ v = value_of_term t in
-      Cted { c; v }
+      let lmao : value = Cted { c; v } in
+      lmao
   | _ -> Error ("unreachable (unreduced term: " ^ show_term t ^ ")")
 
 let match_pair (l : (value * expr) list) (v : value) : (value * expr) option =
@@ -155,6 +154,9 @@ let rec eval (t : term) : term myresult =
   | Tuple l ->
       let++ l = List.map eval l |> bind_all in
       Tuple l
+  | Cted { c; t } ->
+      let++ t = eval t in
+      Cted { c; t }
   | App { omega; t = u } -> begin
       let omega = eval_iso omega in
       let** v' = Result.bind (eval u) value_of_term in
@@ -170,7 +172,6 @@ let rec eval (t : term) : term myresult =
               subst ~from ~into:(term_of_value into) ~what:t)
             (term_of_expr e) unified
           |> eval
-      | Ctor x -> Ok (App { omega = Ctor x; t = term_of_value v' })
       | _ -> Ok t
     end
   | Let { p; t_1; t_2 } -> begin

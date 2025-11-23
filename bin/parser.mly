@@ -12,10 +12,11 @@
 %type <base_type> base_type_grouped base_type
 %type <variant> variant
 %type <value> value_grouped value_almost value
+%type <expr_intermediate> expr_intermediate
 %type <expr> expr
 %type <value * expr> biarrowed
-%type <iso> iso_noctor iso_grouped iso
-%type <term> term_grouped term_almost term
+%type <iso> iso_grouped iso
+%type <term> term_grouped term_almost term term_nonlet
 %%
 
 wtf(separator, X):
@@ -61,42 +62,38 @@ value_grouped:
   | LBRACKET; RBRACKET; { Ctor "Nil" }
   | LBRACKET; vs = separated_nonempty_list(SEMICOLON, value); RBRACKET;
     {
-      let f value acc = Cted { c = "Cons"; v = Tuple [value; acc] } in
+      let f value acc : value = Cted { c = "Cons"; v = Tuple [value; acc] } in
       List.fold_right f vs (Ctor "Nil")
     }
 
 value_almost:
   | v = value_grouped; { v }
-  | c = CTOR; v = value_grouped; { Cted { c ; v } }
+  | c = CTOR; v = value_grouped; { let lmao : value = Cted { c ; v } in lmao }
 
 value:
   | v = value_almost; { v }
   | v_1 = value_almost; CONS; v_2 = value; { Cted { c = "Cons"; v = Tuple [v_1; v_2] } }
 
+expr_intermediate:
+  | t = term_nonlet; { IValue t }
+  | LET; p_1 = value; EQUAL; p_2 = term_nonlet; IN; e = expr_intermediate; { ILet { p_1; p_2; e } }
+  | LET; p_1 = value; EQUAL; MATCH; p_2 = term_nonlet; WITH;
+    PIPE?; p = separated_nonempty_list(PIPE, biarrowed); IN; e = expr_intermediate;
+    { ILet { p_1; p_2 = App { omega = Pairs p; t = p_2 }; e } }
+
 expr:
-  | v = value; { Value v }
-  | LET; p = value; EQUAL; v = value; IN; e = expr; { LetVal { p; v; e } }
-  | LET; p_1 = value; EQUAL; omega = iso_noctor; p_2 = value_grouped; IN; e = expr; { Let { p_1; omega; p_2; e } }
-  | LET; p_1 = value; EQUAL; MATCH; p_2 = value; WITH;
-    PIPE?; p = separated_nonempty_list(PIPE, biarrowed); IN; e = expr;
-    { Let { p_1; omega = Pairs p; p_2; e } }
+  | e = expr_intermediate;
+    {
+      let gen = new_generator () in
+      expand_expr gen e |> Result.error_to_failure
+    }
 
 biarrowed:
   | v = value; BIARROW; e = expr; { (v, e) }
 
-iso_noctor:
-  | INVERT; omega = iso_grouped; { Invert omega }
-  | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
-  | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
-  | FUN; params = VAR+; ARROW; omega = iso; { lambdas_of_params params omega }
-  | omega_1 = iso_noctor; omega_2 = iso_grouped; { App { omega_1; omega_2 } }
-  | LBRACE; omega = iso; RBRACE; { omega }
-  | x = VAR; { Var x }
-
 iso_grouped:
   | LBRACE; omega = iso; RBRACE; { omega }
-  | x = VAR; { Var x }
-  | x = CTOR; { Ctor x }
+  | x = VAR; { let lmao : iso = Var x in lmao }
 
 iso:
   | omega = iso_grouped; { omega }
@@ -110,23 +107,24 @@ term_grouped:
   | LPAREN; t = term; RPAREN; { t }
   | LPAREN; RPAREN; { Unit }
   | LPAREN; ts = wtf(COMMA, term); RPAREN; { Tuple ts }
-  | x = VAR; { Named x }
-  | x = CTOR; { Named x }
+  | x = VAR; { Var x }
+  | x = CTOR; { Ctor x }
   | n = NAT; { nat_of_int n |> term_of_value }
-  | LBRACKET; RBRACKET; { Named "Nil" }
+  | LBRACKET; RBRACKET; { Ctor "Nil" }
   | LBRACKET; ts = separated_nonempty_list(SEMICOLON, term); RBRACKET;
     {
-      let f t acc = App { omega = Ctor "Cons"; t = Tuple [t; acc] } in
-      List.fold_right f ts (Named "Nil")
+      let f t acc = Cted { c = "Cons"; t = Tuple [t; acc] } in
+      List.fold_right f ts (Ctor "Nil")
     }
 
 term_almost:
   | t = term_grouped; { t }
+  | c = CTOR; t = term_grouped; { Cted { c; t } }
   | omega = iso; t = term_grouped; { App { omega; t } }
 
 term:
   | t = term_almost; { t }
-  | t_1 = term_almost; CONS; t_2 = term; { App { omega = Ctor "Cons"; t = Tuple [t_1; t_2] } }
+  | t_1 = term_almost; CONS; t_2 = term; { Cted { c = "Cons"; t = Tuple [t_1; t_2] } }
   | LET; p = value; EQUAL; t_1 = term; IN; t_2 = term; { Let { p; t_1; t_2 } }
   | ISO; phi = VAR; params = VAR*; EQUAL; omega = iso; IN; t = term;
     { LetIso { phi; omega = lambdas_of_params params omega; t } }
@@ -139,4 +137,10 @@ term:
       let omega = lambdas_of_params params omega in
       LetIso { phi; omega = Fix { phi; omega }; t }
     }
+
+term_nonlet:
+  | t = term_almost; { t }
+  | t_1 = term_almost; CONS; t_2 = term_nonlet; { Cted { c = "Cons"; t = Tuple [t_1; t_2] } }
+  | MATCH; t = term_nonlet; WITH; PIPE?; p = separated_nonempty_list(PIPE, biarrowed);
+    { App { omega = Pairs p; t } }
 

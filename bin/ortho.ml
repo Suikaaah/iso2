@@ -3,12 +3,6 @@ open Util
 
 type equation = value * value
 type subst = { what : string; into : value }
-type generator = { mutable i : int }
-
-let fresh (gen : generator) : int =
-  let i = gen.i in
-  gen.i <- i + 1;
-  i
 
 let rec subst (s : subst) : value -> value = function
   | Unit -> Unit
@@ -83,7 +77,7 @@ let rec reduce : subst list -> subst list = function
       s :: s'
 
 let is_orthogonal (u : value) (v : value) : unit myresult =
-  let gen = { i = 0 } in
+  let gen = new_generator () in
 
   let convert_value v =
     let fresh_name () =
@@ -117,7 +111,7 @@ let is_orthogonal (u : value) (v : value) : unit myresult =
   | Error () -> Ok ()
 
 let convert_pair ((v, e) : value * expr) : value * expr =
-  let gen = { i = 0 } in
+  let gen = new_generator () in
 
   (* ' is needed for creating fresh names due to the let exprs *)
   let fresh_name () = "'" ^ chars_of_int (fresh gen) in

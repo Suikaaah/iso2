@@ -19,9 +19,7 @@ in
 
 iso rec double = case
 | []      <-> []
-| x :: xs <->
-  let xs = double xs in
-  x :: x :: xs
+| x :: xs <-> x :: x :: (double xs)
 in
 
 iso rec rev' = case
@@ -32,9 +30,8 @@ iso rec rev' = case
 in
 
 iso rev = case l <->
-  let p = len l in
-  let (l, (n, [])) = rev' ([], p) in
-  let l = inv len (n, l) in l
+  let (l, (n, [])) = rev' ([], len l) in
+  inv len (n, l)
 in
 
 iso rec foldl_map f = case
@@ -70,8 +67,7 @@ in
 
 iso partition = case (r, n) <->
   let (l, r, n) = partition' ([], r, n) in
-  let l = inv len (n, l) in
-  let l = rev l in (l, r)
+  (rev (inv len (n, l)), r)
 in
 
 iso concat = inv partition in
@@ -82,9 +78,7 @@ iso rec add = case
 | (m, 0)   <-> (m, 0)
 in
 
-iso rec sum = case l <->
-  let x = foldl_map add (0, l) in x
-in
+iso rec sum = case l <-> foldl_map add (0, l) in
 
 iso rec iota' = case
 | 0   <-> []
@@ -94,10 +88,7 @@ iso rec iota' = case
   n' :: xs
 in
 
-iso iota = case n <->
-  let l = iota' n in
-  let l = rev l in l
-in
+iso iota = case n <-> rev (iota' n) in
 
 iso rec push_back = case
 | ([], y)      <-> [y]
@@ -106,5 +97,5 @@ iso rec push_back = case
   x :: y :: xs
 in
 
-push_back ([3; 2; 1], 8)
+double (iota 5)
 

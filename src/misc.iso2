@@ -6,18 +6,15 @@ type nat             = Z (* 0 *) | S (* n *) of nat
 
 iso map f = case
 | None   <-> None
-| Some x <-> let x = f x in Some x
+| Some x <-> Some (f x)
 in
 
 iso if then else = case
-| (True, x)  <-> let x = then x in (True, x)
-| (False, x) <-> let x = else x in (False, x)
+| (True, x)  <-> (True, then x)
+| (False, x) <-> (False, else x)
 in
 
-iso compose g f = case x <->
-  let x = f x in
-  let x = g x in x
-in
+iso compose g f = case x <-> g (f x) in
 
 ()
 

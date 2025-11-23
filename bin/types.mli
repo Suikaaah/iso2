@@ -29,21 +29,27 @@ and iso =
   | Fix of { phi : string; omega : iso }
   | Lambda of { psi : string; omega : iso }
   | Var of string
-  | Ctor of string
   | App of { omega_1 : iso; omega_2 : iso }
   | Invert of iso
 
 type term =
   | Unit
-  | Named of string
+  | Var of string
+  | Ctor of string
+  | Cted of { c : string; t : term }
   | Tuple of term list
   | App of { omega : iso; t : term }
   | Let of { p : value; t_1 : term; t_2 : term }
   | LetIso of { phi : string; omega : iso; t : term }
 
+type expr_intermediate =
+  | IValue of term
+  | ILet of { p_1 : value; p_2 : term; e : expr_intermediate }
+
 type variant = Value of string | Iso of { c : string; a : base_type }
 type typedef = { vars : string list; t : string; vs : variant list }
 type program = { ts : typedef list; t : term }
+type generator
 
 val term_of_value : value -> term
 val term_of_expr : expr -> term
@@ -66,3 +72,7 @@ val show_term : term -> string
 val nat_of_int : int -> value
 val build_storage : 'a -> value -> 'a option StrMap.t
 val collect_vars : value -> string list
+val new_generator : unit -> generator
+val fresh : generator -> int
+val expand : generator -> term -> ((value * iso * value) list * value) myresult
+val expand_expr : generator -> expr_intermediate -> expr myresult

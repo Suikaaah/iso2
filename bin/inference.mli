@@ -7,9 +7,7 @@ type inferred_pair
 type inferred
 type elt
 type context
-type generator = { mutable i : int }
 
-val fresh : generator -> int
 val subst : subst -> any -> any
 val tvar_map : any list -> (int * int) list
 val invert_iso_type : any -> any myresult
@@ -23,12 +21,12 @@ val show_equation : equation -> string
 val show_equations : equation list -> string
 val subst_in_context : subst -> context -> context
 val subst_in_equations : subst -> equation list -> equation list
-val instantiate : generator -> elt -> any
+val instantiate : Types.generator -> elt -> any
 val occurs : int -> any -> bool
 val unify : equation list -> subst list myresult
 val finalize : inferred -> any myresult
 val find_generalizable : any -> context -> int list
-val extract_named : generator -> Types.value -> any StrMap.t
+val extract_named : Types.generator -> Types.value -> any StrMap.t
 
 val invert_pairs :
   (Types.value * Types.expr) list -> (Types.value * Types.expr) list
@@ -44,15 +42,18 @@ val generalize :
   context ->
   Types.value ->
   any ->
-  generator ->
+  Types.generator ->
   (context * equation list) myresult
 
 val infer_pair :
-  generator -> context -> Types.value * Types.expr -> inferred_pair myresult
+  Types.generator ->
+  context ->
+  Types.value * Types.expr ->
+  inferred_pair myresult
 
-val infer_term : Types.term -> generator -> context -> inferred myresult
-val infer_expr : Types.expr -> generator -> context -> inferred myresult
-val infer_iso : Types.iso -> generator -> context -> inferred myresult
+val infer_term : Types.term -> Types.generator -> context -> inferred myresult
+val infer_expr : Types.expr -> Types.generator -> context -> inferred myresult
+val infer_iso : Types.iso -> Types.generator -> context -> inferred myresult
 
 val any_of_base :
   var_map:int StrMap.t ->
@@ -61,4 +62,4 @@ val any_of_base :
   any myresult
 
 val arity_map : Types.typedef list -> int StrMap.t
-val build_ctx : generator -> Types.typedef list -> context myresult
+val build_ctx : Types.generator -> Types.typedef list -> context myresult

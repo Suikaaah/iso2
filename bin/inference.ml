@@ -16,12 +16,6 @@ type inferred_pair = { a_v : any; a_e : any; e : equation list }
 type inferred = { a : any; e : equation list }
 type elt = Mono of any | Scheme of { forall : int list; a : any }
 type context = elt StrMap.t
-type generator = { mutable i : int }
-
-let fresh (gen : generator) : int =
-  let i = gen.i in
-  gen.i <- i + 1;
-  i
 
 let rec subst (s : subst) : any -> any = function
   | Var x when x = s.what -> s.into
@@ -35,11 +29,11 @@ let rec subst (s : subst) : any -> any = function
 let tvar_map (a : any list) : (int * int) list =
   let module IntMap = Map.Make (Int) in
   let map = ref IntMap.empty in
-  let gen = { i = 0 } in
+  let gen = Types.new_generator () in
   let get x =
     match IntMap.find_opt x !map with
     | Some _ -> ()
-    | None -> map := IntMap.add x (fresh gen) !map
+    | None -> map := IntMap.add x (Types.fresh gen) !map
   in
   let rec collect = function
     | Unit | Named _ -> ()
@@ -144,11 +138,11 @@ let subst_in_context (s : subst) : context -> context =
 let subst_in_equations (s : subst) : equation list -> equation list =
   List.map (fun (a, b) -> (subst s a, subst s b))
 
-let instantiate (gen : generator) : elt -> any = function
+let instantiate (gen : Types.generator) : elt -> any = function
   | Mono a -> a
   | Scheme { forall; a } ->
       List.fold_left
-        (fun a what -> subst { what; into = Var (fresh gen) } a)
+        (fun a what -> subst { what; into = Var (Types.fresh gen) } a)
         a forall
 
 let rec occurs (x : int) : any -> bool = function
@@ -226,10 +220,10 @@ let find_generalizable (a : any) (ctx : context) : int list =
   in
   IntSet.diff (find_in_any a) (find_in_context ctx) |> IntSet.to_list
 
-let rec extract_named (gen : generator) (v : Types.value) : any StrMap.t =
+let rec extract_named (gen : Types.generator) (v : Types.value) : any StrMap.t =
   match v with
   | Var x ->
-      let var = Var (fresh gen) in
+      let var = Var (Types.fresh gen) in
       StrMap.singleton x var
   | Unit | Ctor _ -> StrMap.empty
   | Cted { v; _ } -> extract_named gen v
@@ -271,14 +265,14 @@ let check_pair ((v, e) : Types.value * Types.expr) : unit myresult =
     | Some true -> Error (x ^ " is already consumed" ^ Lazy.force msg)
     | None -> Error (x ^ " is not in context" ^ Lazy.force msg)
   in
-  let rec collect_in_value = function
+  let rec collect_in_value : Types.value -> unit = function
     | Types.Cted { v; _ } -> collect_in_value v
     | Types.Unit -> ()
     | Types.Var x -> add x
     | Types.Ctor _ -> ()
     | Types.Tuple l -> List.iter collect_in_value l
   in
-  let rec check_in_value = function
+  let rec check_in_value : Types.value -> unit myresult = function
     | Types.Cted { v; _ } -> check_in_value v
     | Types.Unit -> Ok ()
     | Types.Var x -> ensure_existence_nonconsumed x
@@ -315,7 +309,7 @@ let generalize_iso (e : equation list) (ctx : context) (phi : string) (a : any)
   StrMap.add phi generalized ctx
 
 let rec generalize ?(disabled = false) (e : equation list) (ctx : context)
-    (p : Types.value) (a : any) (gen : generator) :
+    (p : Types.value) (a : any) (gen : Types.generator) :
     (context * equation list) myresult =
   let** substs = unify e in
   let u = List.fold_left (fun a s -> subst s a) a substs in
@@ -338,7 +332,7 @@ let rec generalize ?(disabled = false) (e : equation list) (ctx : context)
 
   (union ~weak:ctx ~strong:generalized, es)
 
-and infer_pair (gen : generator) (ctx : context)
+and infer_pair (gen : Types.generator) (ctx : context)
     ((v, e) : Types.value * Types.expr) : inferred_pair myresult =
   let ctx =
     union ~weak:ctx ~strong:(extract_named gen v |> StrMap.map (fun x -> Mono x))
@@ -347,11 +341,11 @@ and infer_pair (gen : generator) (ctx : context)
   let++ { a = a_e; e = e_e } = infer_expr e gen ctx in
   { a_v; a_e; e = e_v @ e_e }
 
-and infer_term (t : Types.term) (gen : generator) (ctx : context) :
+and infer_term (t : Types.term) (gen : Types.generator) (ctx : context) :
     inferred myresult =
   match t with
   | Unit -> Ok { a = Unit; e = [] }
-  | Named x ->
+  | Var x | Ctor x ->
       let++ elt = find_res x ctx in
       { a = instantiate gen elt; e = [] }
   | Tuple l ->
@@ -363,7 +357,13 @@ and infer_term (t : Types.term) (gen : generator) (ctx : context) :
       let** { a = a_1; e = e_1 } = infer_iso omega gen ctx in
       let++ { a = a_2; e = e_2 } = infer_term t gen ctx in
       let e = e_1 @ e_2 in
-      let fresh = Var (fresh gen) in
+      let fresh = Var (Types.fresh gen) in
+      { a = fresh; e = (a_1, BiArrow { a = a_2; b = fresh }) :: e }
+  | Cted { c; t } ->
+      let** elt = find_res c ctx in
+      let a_1 = instantiate gen elt in
+      let++ { a = a_2; e } = infer_term t gen ctx in
+      let fresh = Var (Types.fresh gen) in
       { a = fresh; e = (a_1, BiArrow { a = a_2; b = fresh }) :: e }
   | Let { p; t_1; t_2 } ->
       let** { a = a_1; e = e_1 } = infer_term t_1 gen ctx in
@@ -376,7 +376,7 @@ and infer_term (t : Types.term) (gen : generator) (ctx : context) :
       let++ { a = a_2; e = e_2 } = infer_term t gen ctx in
       { a = a_2; e = e_1 @ e_2 }
 
-and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
+and infer_expr (expr : Types.expr) (gen : Types.generator) (ctx : context) :
     inferred myresult =
   match expr with
   | Value v -> infer_term (Types.term_of_value v) gen ctx
@@ -392,7 +392,7 @@ and infer_expr (expr : Types.expr) (gen : generator) (ctx : context) :
       let++ { a = a_2; e = e_2 } = infer_expr expr gen ctx in
       { a = a_2; e = e_1 @ es @ e_2 }
 
-and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
+and infer_iso (omega : Types.iso) (gen : Types.generator) (ctx : context) :
     inferred myresult =
   match omega with
   | Pairs p ->
@@ -423,27 +423,27 @@ and infer_iso (omega : Types.iso) (gen : generator) (ctx : context) :
       let** () = invert_pairs p |> check_orth in
       infer p
   | Fix { phi; omega } ->
-      let fresh = Var (fresh gen) in
+      let fresh = Var (Types.fresh gen) in
       let ctx = StrMap.add phi (Mono fresh) ctx in
       let++ { a; e } = infer_iso omega gen ctx in
       { a; e = (fresh, a) :: e }
   | Lambda { psi; omega } ->
-      let fresh = Var (fresh gen) in
+      let fresh = Var (Types.fresh gen) in
       let ctx = StrMap.add psi (Mono fresh) ctx in
       let++ { a; e } = infer_iso omega gen ctx in
       { a = Arrow { a = fresh; b = a }; e }
-  | Ctor omega | Var omega ->
+  | Var omega ->
       let++ elt = find_res omega ctx in
       { a = instantiate gen elt; e = [] }
   | App { omega_1; omega_2 } ->
       let** { a = a_1; e = e_1 } = infer_iso omega_1 gen ctx in
       let++ { a = a_2; e = e_2 } = infer_iso omega_2 gen ctx in
       let e = e_1 @ e_2 in
-      let fresh = Var (fresh gen) in
+      let fresh = Var (Types.fresh gen) in
       { a = fresh; e = (a_1, Arrow { a = a_2; b = fresh }) :: e }
   | Invert omega ->
       let++ { a; e } = infer_iso omega gen ctx in
-      let fresh = Var (fresh gen) in
+      let fresh = Var (Types.fresh gen) in
       { a = fresh; e = (fresh, Inverted a) :: e }
 
 let rec any_of_base ~(var_map : int StrMap.t) ~(arity_map : int StrMap.t) :
@@ -478,7 +478,8 @@ let arity_map (defs : Types.typedef list) : int StrMap.t =
     (fun acc Types.{ vars; t; _ } -> StrMap.add t (List.length vars) acc)
     StrMap.empty defs
 
-let build_ctx (gen : generator) (defs : Types.typedef list) : context myresult =
+let build_ctx (gen : Types.generator) (defs : Types.typedef list) :
+    context myresult =
   let arity_map = arity_map defs in
   let occured = ref StrSet.empty in
   let register t =
@@ -490,7 +491,7 @@ let build_ctx (gen : generator) (defs : Types.typedef list) : context myresult =
     let** () = register t in
     let var_map =
       List.fold_left
-        (fun acc x -> StrMap.add x (fresh gen) acc)
+        (fun acc x -> StrMap.add x (Types.fresh gen) acc)
         StrMap.empty vars
     in
     let** forall = List.map (fun x -> find_res x var_map) vars |> bind_all in

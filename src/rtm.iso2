@@ -17,27 +17,23 @@ iso delta = case
 in
 
 iso delta_fwd = case c <->
-  let c = delta c in
-  let b = match c with
-    | (Init, t)  <-> ((Init, t), False)
-    | (Next, t)  <-> ((Next, t), False)
-    | (Flip, t)  <-> ((Flip, t), False)
-    | (Done, t)  <-> ((Done, t), False)
-    | (Back, t)  <-> ((Back, t), False)
-    | (Final, t) <-> ((Final, t), True)
-  in b
+  match delta c with
+  | (Init, t)  <-> ((Init, t), False)
+  | (Next, t)  <-> ((Next, t), False)
+  | (Flip, t)  <-> ((Flip, t), False)
+  | (Done, t)  <-> ((Done, t), False)
+  | (Back, t)  <-> ((Back, t), False)
+  | (Final, t) <-> ((Final, t), True)
 in
 
 iso delta_bwd = case c <->
-  let c = inv delta c in
-  let b = match c with
-    | (Init, t)  <-> ((Init, t), True)
-    | (Next, t)  <-> ((Next, t), False)
-    | (Flip, t)  <-> ((Flip, t), False)
-    | (Done, t)  <-> ((Done, t), False)
-    | (Back, t)  <-> ((Back, t), False)
-    | (Final, t) <-> ((Final, t), False)
-  in b
+  match inv delta c with
+  | (Init, t)  <-> ((Init, t), True)
+  | (Next, t)  <-> ((Next, t), False)
+  | (Flip, t)  <-> ((Flip, t), False)
+  | (Done, t)  <-> ((Done, t), False)
+  | (Back, t)  <-> ((Back, t), False)
+  | (Final, t) <-> ((Final, t), False)
 in
 
 iso rec rm_blank = case
@@ -68,13 +64,11 @@ in
 
 iso rec iter delta = case c <->
   let (c, g) = extend c in
-  let b = delta c in
-  let x = match (b, g) with
-    | ((c, False), g)  <->
-      let (c, gs) = iter delta c in
-      (c, (g, False) :: gs)
-    | ((c, True), g) <-> (c, [(g, True)])
-  in x
+  match (delta c, g) with
+  | ((c, True), g) <-> (c, [(g, True)])
+  | ((c, False), g)  <->
+    let (c, gs) = iter delta c in
+    (c, (g, False) :: gs)
 in
 
 iso rm_garb f f' = case i <->
@@ -83,13 +77,10 @@ iso rm_garb f f' = case i <->
   let i = inv f (o, g) in
   let (i', g) = f' o' in
   let (i, i) = (i, i') in
-  let o = inv f' (i, g) in o
+  inv f' (i, g)
 in
 
-iso compose g f = case x <->
-  let x = f x in
-  let x = g x in x
-in
+iso compose g f = case x <-> g (f x) in
 
 iso compute = rm_garb
   {compose clean_up {iter delta_fwd}}

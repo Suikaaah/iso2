@@ -5,8 +5,7 @@ type nat     = Z (* 0 *) | S (* n *) of nat
 iso rec insert lt = case
 | (x, [])      <-> ([x], 0)
 | (x, y :: ys) <->
-  let ord = lt (y, x) in
-  let (x :: y :: ys, n) = match (ord, ys) with
+  let (x :: y :: ys, n) = match (lt (y, x), ys) with
     | ((False, (y, x)), ys) <-> (x :: y :: ys, 0)
     | ((True, (y, x)), ys)  <->
       let (ys, n) = insert lt (x, ys) in (y :: ys, S n)
