@@ -11,15 +11,12 @@ in
 
 iso rec map f = case
 | []     <-> []
-| h :: t <->
-  let h = f h in
-  let t = map f t in
-  h :: t
+| h :: t <-> f h :: map f t
 in
 
 iso rec double = case
 | []      <-> []
-| x :: xs <-> x :: x :: (double xs)
+| x :: xs <-> x :: x :: double xs
 in
 
 iso rec rev' = case
@@ -82,10 +79,7 @@ iso rec sum = case l <-> foldl_map add (0, l) in
 
 iso rec iota' = case
 | 0   <-> []
-| S n <->
-  let (n, n') = (n, n) in
-  let xs = iota' n in
-  n' :: xs
+| S n <-> let (n, n') = (n, n) in n :: iota' n'
 in
 
 iso iota = case n <-> rev (iota' n) in

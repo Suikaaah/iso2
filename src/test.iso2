@@ -4,6 +4,10 @@ type ('l, 'r) either = Left of 'l | Right of 'r
 type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat             = Z (* 0 *) | S (* n *) of nat
 
-iso f = case x <-> Some x in
+iso rec map f = case
+| []     <-> []
+| h :: t <-> f h :: map f t
+in
 
-(f 3, f None)
+map {case x <-> S x} [3; 5; 9; 10]
+

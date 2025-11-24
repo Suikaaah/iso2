@@ -24,7 +24,7 @@ iso rec cantor_pairing = case x <->
     | (0, S j) <-> Some (j, 0)
     | (0, 0)   <-> None
   in match y with
-    | Some x <-> let y = cantor_pairing x in S y
+    | Some x <-> S (cantor_pairing x)
     | None   <-> 0
 in
 
