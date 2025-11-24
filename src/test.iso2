@@ -4,10 +4,47 @@ type ('l, 'r) either = Left of 'l | Right of 'r
 type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat             = Z (* 0 *) | S (* n *) of nat
 
-iso rec map f = case
-| []     <-> []
-| h :: t <-> f h :: map f t
+iso rec len = case
+| []      <-> (0, [])
+| x :: xs <-> let (n, xs) = len xs in (S n, x :: xs)
 in
 
-map {case x <-> S x} [3; 5; 9; 10]
+iso rec rev' = case
+| (l, (0, []))        <-> (l, (0, []))
+| (l, (S n, x :: xs)) <->
+  let (l, (n, xs)) = rev' (x :: l, (n, xs)) in
+  (l, (S n, xs))
+in
+
+iso rev = case l <->
+  let (l, (n, [])) = rev' ([], len l) in
+  inv len (n, l)
+in
+
+iso rec partition' = case
+| (l, r, 0)         <-> (l, r, 0)
+| (l, x :: xs, S n) <->
+  let (l, xs, n) = partition' (x :: l, xs, n) in
+  (l, xs, S n)
+in
+
+iso partition = case (r, n) <->
+  let (l, r, n) = partition' ([], r, n) in
+  (rev (inv len (n, l)), r)
+in
+
+iso rec halve = case
+| 0       <-> (0, 0)
+| 1       <-> (0, 1)
+| S (S n) <-> let (m, n) = halve n in (S m, S n)
+in
+
+iso split = case l <->
+  let (n, l) = len l in
+  let (m, n) = halve n in
+  let (l, r) = partition (l, m) in
+  (l, inv len (n, r))
+in
+
+split [1; 2; 3; 4; 5; 6]
 

@@ -1,16 +1,20 @@
-type bool            = False | True
-type 'a option       = None | Some of 'a
-type ('l, 'r) either = Left of 'l | Right of 'r
-type ('a, 'e) result = Ok of 'a | Error of 'e
-type 'a list         = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
-type nat             = Z (* 0 *) | S (* n *) of nat
+type bool    = False | True
+type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
+type nat     = Z (* 0 *) | S (* n *) of nat
+
+iso recover f = case i <->
+  let (o, g) = f i in
+  let (o, o') = (o, o) in
+  (o, inv f (o', g))
+in
 
 iso rec merge leq = case
 | ([], [])           <-> ([], [])
 | (x :: xs, [])      <-> (x :: xs, [False])
 | ([], y :: ys)      <-> (y :: ys, [True])
 | (x :: xs, y :: ys) <->
-  let (xs, g :: g' :: gs) = match (leq (x, y), xs, ys) with
+  let (xs, g :: g' :: gs) =
+    match (leq (x, y), xs, ys) with
     | ((True, (x, y)), xs, ys) <->
       let (merged, g) = merge leq (xs, y :: ys) in
       (x :: merged, False :: g)
@@ -20,6 +24,61 @@ iso rec merge leq = case
   in (xs, g :: g' :: gs)
 in
 
+iso rec len = case
+| []      <-> (0, [])
+| x :: xs <-> let (n, xs) = len xs in (S n, x :: xs)
+in
+
+iso rec rev' = case
+| (l, (0, []))        <-> (l, (0, []))
+| (l, (S n, x :: xs)) <->
+  let (l, (n, xs)) = rev' (x :: l, (n, xs)) in
+  (l, (S n, xs))
+in
+
+iso rev = case l <->
+  let (l, (n, [])) = rev' ([], len l) in
+  inv len (n, l)
+in
+
+iso rec partition' = case
+| (l, r, 0)         <-> (l, r, 0)
+| (l, x :: xs, S n) <->
+  let (l, xs, n) = partition' (x :: l, xs, n) in
+  (l, xs, S n)
+in
+
+iso partition = case (r, n) <->
+  let (l, r, n) = partition' ([], r, n) in
+  (rev (inv len (n, l)), r)
+in
+
+iso rec halve = case
+| 0       <-> (0, 0)
+| 1       <-> (0, 1)
+| S (S n) <-> let (m, n) = halve n in (S m, S n)
+in
+
+iso split = case l <->
+  let (n, l) = len l in
+  let (m, n) = halve n in
+  let (l, r) = partition (l, m) in
+  (l, inv len (n, r))
+in
+
+iso rec msort' leq = case l <->
+  match split l with
+  | ([], [])           <-> ([], [])
+  | ([], [x])          <-> ([x], [])
+  | (x :: xs, y :: ys) <->
+    let (l, gl) = msort' leq (x :: xs) in
+    let (r, gr) = msort' leq (y :: ys) in
+    let (l, g) = merge leq (l, r) in
+    (l, g :: inv split (gl, gr))
+in
+
+iso msort leq = recover {msort' leq} in
+
 iso rec nat_leq = case
 | (0, S n)   <-> (True, (0, S n))
 | (S m, 0)   <-> (False, (S m, 0))
@@ -27,5 +86,5 @@ iso rec nat_leq = case
 | (S m, S n) <-> let (b, (m, n)) = nat_leq (m, n) in (b, (S m, S n))
 in
 
-merge nat_leq ([2;5;6], [1;3;4;7;8])
+msort nat_leq [10; 5; 5; 1; 2; 9; 7; 8; 0; 4; 6; 5; 6]
 

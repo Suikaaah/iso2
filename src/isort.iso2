@@ -2,6 +2,12 @@ type bool    = False | True
 type 'a list = Nil (* [] *) | Cons (* :: *) of 'a * 'a list
 type nat     = Z (* 0 *) | S (* n *) of nat
 
+iso recover f = case i <->
+  let (o, g) = f i in
+  let (o, o') = (o, o) in
+  (o, inv f (o', g))
+in
+
 iso rec insert lt = case
 | (x, [])      <-> ([x], 0)
 | (x, y :: ys) <->
@@ -19,6 +25,8 @@ iso rec isort lt = case
   let (xs, n) = insert lt (x, xs) in (xs, n :: ns)
 in
 
+iso isort lt = recover {isort lt} in
+
 iso rec nat_lt = case
 | (0, S n)   <-> (True, (0, S n))
 | (S m, 0)   <-> (False, (S m, 0))
@@ -26,5 +34,5 @@ iso rec nat_lt = case
 | (S m, S n) <-> let (b, (m, n)) = nat_lt (m, n) in (b, (S m, S n))
 in
 
-isort nat_lt [4; 8; 5; 1; 9; 4; 4; 7; 6; 0]
+isort nat_lt [10; 5; 5; 1; 2; 9; 7; 8; 0; 4; 6; 5; 6]
 
