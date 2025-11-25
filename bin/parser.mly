@@ -15,7 +15,7 @@
 %type <expr_intermediate> expr_intermediate
 %type <expr> expr
 %type <value * expr> biarrowed
-%type <iso> iso_grouped iso
+%type <iso> iso_grouped iso_almost iso
 %type <term> term_grouped term_almost term term_nonlet
 %%
 
@@ -95,13 +95,16 @@ iso_grouped:
   | LBRACE; omega = iso; RBRACE; { omega }
   | x = VAR; { let lmao : iso = Var x in lmao }
 
-iso:
+iso_almost:
   | omega = iso_grouped; { omega }
   | INVERT; omega = iso_grouped; { Invert omega }
+  | omega_1 = iso_almost; omega_2 = iso_grouped; { App { omega_1; omega_2 } }
+
+iso:
+  | omega = iso_almost; { omega }
   | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
   | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
   | FUN; params = VAR+; ARROW; omega = iso; { lambdas_of_params params omega }
-  | omega_1 = iso; omega_2 = iso_grouped; { App { omega_1; omega_2 } }
 
 term_grouped:
   | LPAREN; t = term; RPAREN; { t }
@@ -120,7 +123,7 @@ term_grouped:
 term_almost:
   | t = term_grouped; { t }
   | c = CTOR; t = term_grouped; { Cted { c; t } }
-  | omega = iso; t = term_grouped; { App { omega; t } }
+  | omega = iso_almost; t = term_grouped; { App { omega; t } }
 
 term:
   | t = term_almost; { t }
