@@ -37,16 +37,18 @@ iso rec cmp = case
   (o, S m, S n)
 in
 
+iso rec halve = case
+| 0       <-> (0, 0)
+| 1       <-> (0, 1)
+| S (S n) <-> let (m, n) = halve n in (S m, S n)
+in
+
 iso rec fib = case
 | 0 <-> (1, 1)
 | S n <->
-  let (x1, x2) = fib n in
-  let (S (S x2'), x1) = add (x1, x2) in
-  (x1, S (S x2'))
+  let (S (S m), n) = add (fib n) in
+  (n, S (S m))
 in
 
-let (5, 8) = fib 4 in
-let 4 = inv fib (5, 8) in
-
-parity 37
+halve 69
 
