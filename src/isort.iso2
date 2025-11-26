@@ -18,14 +18,14 @@ iso rec insert lt = case
   in (x :: y :: ys, n)
 in
 
-iso rec isort lt = case
+iso rec isort' lt = case
 | []      <-> ([], [])
 | x :: xs <->
-  let (xs, ns) = isort lt xs in
+  let (xs, ns) = isort' lt xs in
   let (xs, n) = insert lt (x, xs) in (xs, n :: ns)
 in
 
-iso isort lt = recover {isort lt} in
+iso isort lt = recover {isort' lt} in
 
 iso rec nat_lt = case
 | (0, S n)   <-> (True, (0, S n))

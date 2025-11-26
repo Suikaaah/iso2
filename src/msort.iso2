@@ -30,51 +30,51 @@ iso rec len = case
 in
 
 iso rec rev' = case
-| (l, (0, []))        <-> (l, (0, []))
-| (l, (S n, x :: xs)) <->
-  let (l, (n, xs)) = rev' (x :: l, (n, xs)) in
-  (l, (S n, xs))
+| (xs, (0, []))        <-> (xs, (0, []))
+| (xs, (S n, y :: ys)) <->
+  let (xs, (n, ys)) = rev' (y :: xs, (n, ys)) in
+  (xs, (S n, ys))
 in
 
-iso rev = case l <->
-  let (l, (n, [])) = rev' ([], len l) in
-  inv len (n, l)
+iso rev = case xs <->
+  let (xs, (n, [])) = rev' ([], len xs) in
+  inv len (n, xs)
 in
 
 iso rec partition' = case
-| (l, r, 0)         <-> (l, r, 0)
-| (l, x :: xs, S n) <->
-  let (l, xs, n) = partition' (x :: l, xs, n) in
-  (l, xs, S n)
+| (xs, ys, 0)         <-> (xs, ys, 0)
+| (xs, y :: ys, S n) <->
+  let (xs, ys, n) = partition' (y :: xs, ys, n) in
+  (xs, ys, S n)
 in
 
-iso partition = case (r, n) <->
-  let (l, r, n) = partition' ([], r, n) in
-  (rev (inv len (n, l)), r)
+iso partition = case (xs, n) <->
+  let (xs, ys, n) = partition' ([], xs, n) in
+  (rev (inv len (n, xs)), ys)
 in
 
 iso rec halve = case
 | 0       <-> (0, 0)
-| 1       <-> (0, 1)
+| 1       <-> (1, 0)
 | S (S n) <-> let (m, n) = halve n in (S m, S n)
 in
 
-iso split = case l <->
-  let (n, l) = len l in
+iso split = case xs <->
+  let (n, xs) = len xs in
   let (m, n) = halve n in
-  let (l, r) = partition (l, m) in
-  (l, inv len (n, r))
+  let (xs, ys) = partition (xs, m) in
+  (xs, inv len (n, ys))
 in
 
-iso rec msort' leq = case l <->
-  match split l with
+iso rec msort' leq = case xs <->
+  match split xs with
   | ([], [])           <-> ([], [])
-  | ([], [x])          <-> ([x], [])
+  | ([x], [])          <-> ([x], [])
   | (x :: xs, y :: ys) <->
-    let (l, gl) = msort' leq (x :: xs) in
-    let (r, gr) = msort' leq (y :: ys) in
-    let (l, g) = merge leq (l, r) in
-    (l, g :: inv split (gl, gr))
+    let (xs, gx) = msort' leq (x :: xs) in
+    let (ys, gy) = msort' leq (y :: ys) in
+    let (xs, g) = merge leq (xs, ys) in
+    (xs, g :: inv split (gx, gy))
 in
 
 iso msort leq = recover {msort' leq} in
