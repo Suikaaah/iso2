@@ -2,7 +2,7 @@
   open Types
 %}
 
-%token EOF LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET TIMES PIPE DOT COMMA SEMICOLON CONS
+%token EOF LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET TIMES PIPE COMMA SEMICOLON CONS
        ARROW BIARROW EQUAL UNIT LET IN ISO FIX TYPE INVERT REC OF FUN CASE MATCH WITH
 %token <int> NAT
 %token <string> TVAR VAR CTOR
@@ -103,7 +103,7 @@ iso_almost:
 iso:
   | omega = iso_almost; { omega }
   | CASE; PIPE?; p = separated_nonempty_list(PIPE, biarrowed); { Pairs p }
-  | FIX; phi = VAR; DOT; omega = iso; { Fix { phi; omega } }
+  | FIX; phi = VAR; ARROW; omega = iso; { Fix { phi; omega } }
   | FUN; params = VAR+; ARROW; omega = iso; { lambdas_of_params params omega }
 
 term_grouped:

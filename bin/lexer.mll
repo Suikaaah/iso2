@@ -29,7 +29,6 @@ rule read = parse
   | "]" { RBRACKET }
   | "*" { TIMES }
   | "|" { PIPE }
-  | "." { DOT }
   | "," { COMMA }
   | ";" { SEMICOLON }
   | "::" { CONS }
