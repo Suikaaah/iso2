@@ -27,5 +27,5 @@ iso rec nat_eq = case
 | (S m, S n) <-> let (b, (m, n)) = nat_eq (m, n) in (b, (S m, S n))
 in
 
-run_length nat_eq [1; 1; 1; 5; 5; 2; 0; 0; 0; 0]
+inv {run_length nat_eq} [(2, 3); (1, 0); (5, 2)]
 

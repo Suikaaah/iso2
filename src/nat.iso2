@@ -50,5 +50,5 @@ iso rec fib = case
   (n, S (S m))
 in
 
-halve 69
+(fib 9, inv fib (8, 13))
 

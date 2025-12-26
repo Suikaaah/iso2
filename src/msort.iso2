@@ -15,7 +15,7 @@ iso rec merge leq = case
 | (x :: xs, y :: ys) <->
   let (xs, g :: g' :: gs) =
     match (leq (x, y), xs, ys) with
-    | ((True, (x, y)), xs, ys) <->
+    | ((True, (x, y)), xs, ys)  <->
       let (merged, g) = merge leq (xs, y :: ys) in
       (x :: merged, False :: g)
     | ((False, (x, y)), xs, ys) <->
@@ -42,7 +42,7 @@ iso rev = case xs <->
 in
 
 iso rec partition' = case
-| (xs, ys, 0)         <-> (xs, ys, 0)
+| (xs, ys, 0)        <-> (xs, ys, 0)
 | (xs, y :: ys, S n) <->
   let (xs, ys, n) = partition' (y :: xs, ys, n) in
   (xs, ys, S n)
